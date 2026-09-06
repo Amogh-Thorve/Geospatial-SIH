@@ -345,3 +345,53 @@ export const MOCK_SETTINGS = {
   emailNotifications: true,
   telegramAlerts: true
 };
+
+export const MOCK_RECENT_ACTIVITY = [
+  {
+    id: "ACT-001",
+    type: "verification",
+    title: "Verification completed",
+    detail: "GW-1033 verified by Officer M. Rao",
+    time: "12 min ago",
+    status: "verified"
+  },
+  {
+    id: "ACT-002",
+    type: "submission",
+    title: "New submission received",
+    detail: "Jal Saheli submission GW-1064 from Chittoor",
+    time: "24 min ago",
+    status: "pending"
+  },
+  {
+    id: "ACT-003",
+    type: "alert",
+    title: "High priority alert raised",
+    detail: "GW-1042 flagged — satellite mismatch detected",
+    time: "41 min ago",
+    status: "high"
+  },
+  {
+    id: "ACT-004",
+    type: "satellite",
+    title: "Sentinel-2 pass completed",
+    detail: "AP region imagery refreshed — 6 new tiles processed",
+    time: "1 hr ago",
+    status: "success"
+  },
+  {
+    id: "ACT-005",
+    type: "submission",
+    title: "Submission flagged for review",
+    detail: "GW-1061 boundary overlap warning raised",
+    time: "2 hrs ago",
+    status: "flagged"
+  }
+];
+
+export const MOCK_SYSTEM_STATUS = [
+  { id: "ai-analysis",    label: "AI Analysis Engine",   status: "operational",   note: "GeoBrain v2.4 running" },
+  { id: "satellite-feed", label: "Satellite Feed",        status: "operational",   note: "Sentinel-2 sync active" },
+  { id: "verification",   label: "Verification Service",  status: "operational",   note: "Queue processing" },
+  { id: "gis-services",   label: "GIS Services",          status: "operational",   note: "Leaflet tiles online" }
+];

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Sparkles, CheckCircle2 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
 export default function AnalysisCard({ title, subtitle, reasons, metrics }) {

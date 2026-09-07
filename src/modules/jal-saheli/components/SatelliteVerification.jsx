@@ -25,7 +25,9 @@ import {
 import { SUBMISSION_STATES } from '../utils/submissionFlow';
 import {
   formatConfidenceLabel,
+  formatBhuvanStatusLabel,
   formatNdviNdwi,
+  formatSatelliteImageryNote,
   formatSatelliteSourceLabel,
 } from '../utils/analysisDisplay';
 
@@ -35,6 +37,8 @@ export default function SatelliteVerification({
   ndvi = null,
   ndwi = null,
   satelliteSource = null,
+  satelliteImageryProvider = null,
+  bhuvan = null,
   ndviSource = null,
   ndwiSource = null,
   satelliteMatch = null,
@@ -57,8 +61,15 @@ export default function SatelliteVerification({
 
   const sourceLabel =
     satelliteSource ||
-    formatSatelliteSourceLabel({ ndviSource, ndwiSource }) ||
+    formatSatelliteSourceLabel({
+      satelliteImageryProvider,
+      ndviSource,
+      ndwiSource,
+    }) ||
     'Local satellite grid';
+
+  const bhuvanLabel = formatBhuvanStatusLabel({ satelliteImageryProvider, bhuvan });
+  const imageryNote = formatSatelliteImageryNote({ satelliteImageryProvider, bhuvan });
 
   const completeBadge =
     satelliteConfidence != null
@@ -81,7 +92,7 @@ export default function SatelliteVerification({
               Satellite Grid Lookup
             </h3>
             <p className="text-[11px] text-slate-500 font-medium">
-              Source: {sourceLabel}
+              {bhuvanLabel} · Source: {sourceLabel}
             </p>
           </div>
         </div>
@@ -142,7 +153,7 @@ export default function SatelliteVerification({
             </div>
 
             <p className="text-xs text-slate-500 text-center italic">
-              Not a live Bhuvan or Srishti feed — local grid only.
+              {imageryNote}
             </p>
           </div>
         )}

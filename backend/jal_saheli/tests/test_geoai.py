@@ -13,6 +13,9 @@ async def test_geo_ai_health(client: AsyncClient) -> None:
     body = response.json()
     assert body["model_loaded"] is True
     assert body["lookup_loaded"] is True
+    assert isinstance(body["bhuvan"], dict)
+    assert body["bhuvan"]["enabled"] is False
+    assert body["bhuvan"]["reachable"] is False
 
 
 @pytest.mark.asyncio

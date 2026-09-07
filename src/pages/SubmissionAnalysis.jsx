@@ -6,7 +6,7 @@ import AnalysisCard from '../components/common/AnalysisCard';
 import StatCard from '../components/common/StatCard';
 import EmptyState from '../components/common/EmptyState';
 import ConnectionBanner from '../components/common/ConnectionBanner';
-import { analyzeSubmission, getAnalysis, getSubmission, listSubmissions } from '../services/geoAiService';
+import { analyzeSubmission, getAnalysis, getGeoAiHealth, getSubmission, listSubmissions } from '../services/geoAiService';
 import { getRecommendation } from '../services/recommendationService';
 import { Loader2 } from 'lucide-react';
 
@@ -29,7 +29,12 @@ export default function SubmissionAnalysis() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [geoError, setGeoError] = useState(null);
+  const [geoHealth, setGeoHealth] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getGeoAiHealth().then(setGeoHealth).catch(() => setGeoHealth(null));
+  }, []);
 
   const load = async (id) => {
     setLoading(true);
@@ -183,6 +188,27 @@ export default function SubmissionAnalysis() {
             <div><span className="text-slate-500 block">Captured</span><strong>{submission.captured_at ? new Date(submission.captured_at).toLocaleString('en-IN') : '—'}</strong></div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="bg-white border border-slate-200 rounded-sm p-3">
+              <span className="text-slate-500 block">Bhuvan WMS</span>
+              <strong>
+                {geoHealth?.bhuvan?.reachable
+                  ? 'Connected'
+                  : geoHealth?.bhuvan?.enabled
+                  ? 'Unavailable'
+                  : 'Disabled'}
+              </strong>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-sm p-3">
+              <span className="text-slate-500 block">Imagery provider</span>
+              <strong>{analysis?.satellite_imagery_provider || 'Not analyzed yet'}</strong>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-sm p-3">
+              <span className="text-slate-500 block">Index source</span>
+              <strong>{analysis?.ndvi_source || 'satellite_lookup.npz when analyzed'}</strong>
+            </div>
+          </div>
+
           <h3 className="text-base font-bold text-slate-900 pt-2">Visual Evidence</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="image-card bg-white border border-slate-200 rounded-sm p-4">
@@ -208,7 +234,9 @@ export default function SubmissionAnalysis() {
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-2 left-2 bg-slate-900/85 text-emerald-400 px-2.5 py-1 rounded text-[11px] font-mono">
-                  Not a live Bhuvan/Srishti granule
+                  {analysis?.satellite_imagery_provider === 'Bhuvan'
+                    ? 'Bhuvan WMS imagery (indices from local grid)'
+                    : 'Local satellite grid — Bhuvan not used for this analysis'}
                 </div>
               </div>
             </div>

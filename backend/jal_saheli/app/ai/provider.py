@@ -1,10 +1,11 @@
-"""Geo AI provider boundary. Production path is Ved's RF + satellite lookup."""
+"""Geo AI provider boundary. Production path is Ved RF + local lookup with optional Bhuvan WMS."""
 
 from __future__ import annotations
 
 from typing import Any, Protocol
 
 from app.geoai.engine import SatelliteUnavailableError, lookup_location
+from app.geoai.providers.bhuvan import get_bhuvan_config, query_bhuvan
 from app.geospatial.adapters import (
     HistoricalRecordsAdapter,
     LocalDrishtiAdapter,
@@ -20,8 +21,21 @@ class GeoAIProvider(Protocol):
         ...
 
 
+def _local_change_detection(bhuvan_result: dict[str, Any] | None) -> str:
+    base = "Single-date lookup only; temporal change detection is not implemented."
+    if bhuvan_result and bhuvan_result.get("status") == "AVAILABLE":
+        return (
+            "Bhuvan WMS imagery retrieved; LULC/NDVI/NDWI indices remain from local "
+            f"satellite grid lookup. {base}"
+        )
+    if get_bhuvan_config().enabled:
+        reason = (bhuvan_result or {}).get("reason", "BHUVAN_UNAVAILABLE")
+        return f"Satellite provider unavailable ({reason}) — using local satellite grid. {base}"
+    return base
+
+
 class VedGeoAIProvider:
-    """Uses Ved's satellite_lookup.npz LULC/NDVI/NDWI. No mock indices."""
+    """Local RF + satellite_lookup.npz with optional Bhuvan WMS imagery probe."""
 
     name = "VedGeoAI-RF-Lookup"
 
@@ -31,6 +45,18 @@ class VedGeoAIProvider:
             LocalSrishtiAdapter().fetch(payload["lat"], payload["lng"]),
             HistoricalRecordsAdapter().fetch(payload["lat"], payload["lng"]),
         )
+
+        bhuvan_result: dict[str, Any] | None = None
+        satellite_imagery_provider = "local_satellite_grid"
+        satellite_imagery_type = "NPZ"
+
+        cfg = get_bhuvan_config()
+        if cfg.enabled:
+            bhuvan_result = query_bhuvan(float(payload["lat"]), float(payload["lng"]), config=cfg)
+            if bhuvan_result.get("status") == "AVAILABLE":
+                satellite_imagery_provider = "Bhuvan"
+                satellite_imagery_type = "WMS"
+
         try:
             lookup = lookup_location(float(payload["lat"]), float(payload["lng"]))
         except SatelliteUnavailableError as exc:
@@ -51,6 +77,9 @@ class VedGeoAIProvider:
                 "fused_record": fused,
                 "status": "UNAVAILABLE",
                 "extra": exc.extra,
+                "satellite_imagery_provider": satellite_imagery_provider,
+                "satellite_imagery_type": satellite_imagery_type,
+                "bhuvan": bhuvan_result,
             }
 
         return {
@@ -64,7 +93,7 @@ class VedGeoAIProvider:
             "ndvi_source": "satellite_lookup",
             "ndwi_source": "satellite_lookup",
             "lulc": lookup["prediction"],
-            "change_detection": lookup["change_detection"],
+            "change_detection": _local_change_detection(bhuvan_result),
             "anomaly": lookup["satellite_match"] == "DISCREPANCY",
             "fused_record": fused,
             "status": "COMPLETED",
@@ -72,6 +101,9 @@ class VedGeoAIProvider:
             "col": lookup["col"],
             "source": lookup["source"],
             "pixel_size_m": lookup["pixel_size_m"],
+            "satellite_imagery_provider": satellite_imagery_provider,
+            "satellite_imagery_type": satellite_imagery_type,
+            "bhuvan": bhuvan_result,
         }
 
 

@@ -388,6 +388,8 @@ export default function SubmitObservation({ onNavigateBack }) {
                   ndwi={state.verificationResult?.ndwi ?? null}
                   ndviSource={state.verificationResult?.ndviSource ?? null}
                   ndwiSource={state.verificationResult?.ndwiSource ?? null}
+                  satelliteImageryProvider={state.verificationResult?.satelliteImageryProvider ?? null}
+                  bhuvan={state.verificationResult?.bhuvan ?? null}
                   satelliteMatch={state.verificationResult?.satelliteMatch ?? null}
                   changeDetection={state.verificationResult?.changeDetection ?? null}
                   location={state.location}

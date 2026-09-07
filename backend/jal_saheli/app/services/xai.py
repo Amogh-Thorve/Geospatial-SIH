@@ -25,6 +25,20 @@ def build_xai(analysis: dict[str, Any], terrain: dict[str, Any] | None = None) -
         f"Stored NDVI={analysis.get('ndvi')}, NDWI={analysis.get('ndwi')} from satellite_lookup.npz.",
         analysis.get("change_detection") or "",
     ]
+    imagery_provider = analysis.get("satellite_imagery_provider")
+    if imagery_provider == "Bhuvan":
+        bhuvan = analysis.get("bhuvan") or {}
+        explanation.insert(
+            1,
+            "Bhuvan WMS imagery retrieved (map tile only; indices are not derived from Bhuvan WMS).",
+        )
+        if bhuvan.get("source"):
+            explanation.insert(2, f"Bhuvan layer: {bhuvan['source']}.")
+    elif imagery_provider == "local_satellite_grid" and analysis.get("bhuvan"):
+        explanation.insert(
+            1,
+            "Bhuvan unavailable; local satellite grid used for indices.",
+        )
     if analysis.get("row") is not None and analysis.get("col") is not None:
         explanation.insert(
             0,
@@ -42,4 +56,7 @@ def build_xai(analysis: dict[str, Any], terrain: dict[str, Any] | None = None) -
         "important_features": [],
         "explanation": [part for part in explanation if part],
         "method": "satellite-lookup",
+        "satellite_imagery_provider": analysis.get("satellite_imagery_provider"),
+        "satellite_imagery_type": analysis.get("satellite_imagery_type"),
+        "bhuvan": analysis.get("bhuvan"),
     }

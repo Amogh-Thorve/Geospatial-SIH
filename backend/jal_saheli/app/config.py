@@ -160,6 +160,30 @@ class SatelliteSettings(BaseSettings):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Category: Bhuvan (ISRO WMS)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class BhuvanSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+    enabled: bool = Field(default=False, validation_alias="BHUVAN_ENABLED")
+    wms_url: str = Field(default="", validation_alias="BHUVAN_WMS_URL")
+    layer: str = Field(default="", validation_alias="BHUVAN_LAYER")
+    version: str = Field(default="1.1.1", validation_alias="BHUVAN_VERSION")
+    crs: str = Field(default="EPSG:4326", validation_alias="BHUVAN_CRS")
+    format: str = Field(default="image/png", validation_alias="BHUVAN_FORMAT")
+    timeout_seconds: float = Field(default=15.0, validation_alias="BHUVAN_TIMEOUT")
+    bbox_delta_deg: float = Field(default=0.05, validation_alias="BHUVAN_BBOX_DELTA")
+    map_width: int = Field(default=256, validation_alias="BHUVAN_MAP_WIDTH")
+    map_height: int = Field(default=256, validation_alias="BHUVAN_MAP_HEIGHT")
+
+    @property
+    def configured(self) -> bool:
+        """Enabled Bhuvan uses official defaults when URL/layer env vars are empty."""
+        return bool(self.enabled)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Category: Storage
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -233,6 +257,7 @@ class Settings(BaseSettings):
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
     ai: AISettings = Field(default_factory=AISettings)
     satellite: SatelliteSettings = Field(default_factory=SatelliteSettings)
+    bhuvan: BhuvanSettings = Field(default_factory=BhuvanSettings)
     storage: StorageSettings = Field(default_factory=StorageSettings)
     cors: CORSSettings = Field(default_factory=CORSSettings)
 
@@ -244,6 +269,7 @@ class Settings(BaseSettings):
         self.telegram = TelegramSettings()
         self.ai = AISettings()
         self.satellite = SatelliteSettings()
+        self.bhuvan = BhuvanSettings()
         self.storage = StorageSettings()
         self.cors = CORSSettings()
 

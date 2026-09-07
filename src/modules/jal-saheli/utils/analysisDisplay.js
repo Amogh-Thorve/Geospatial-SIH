@@ -13,6 +13,13 @@ export function formatConfidenceLabel(confidence) {
 }
 
 export function formatSatelliteSourceLabel(analysis) {
+  const imagery = analysis?.satelliteImageryProvider || analysis?.satellite_imagery_provider;
+  if (imagery === 'Bhuvan') {
+    return 'Bhuvan WMS';
+  }
+  if (imagery === 'local_satellite_grid') {
+    return 'Local satellite grid';
+  }
   const src = analysis?.ndviSource || analysis?.ndwiSource || analysis?.ndvi_source || analysis?.ndwi_source;
   if (src === 'satellite_lookup' || src === 'real_satellite_grid') {
     return 'Local satellite grid';
@@ -21,6 +28,31 @@ export function formatSatelliteSourceLabel(analysis) {
     return src;
   }
   return null;
+}
+
+export function formatBhuvanStatusLabel(analysis) {
+  const bhuvan = analysis?.bhuvan;
+  if (!bhuvan) {
+    const imagery = analysis?.satelliteImageryProvider || analysis?.satellite_imagery_provider;
+    if (imagery === 'Bhuvan') return 'Bhuvan: Connected';
+    if (imagery === 'local_satellite_grid') return 'Bhuvan: Unavailable';
+    return 'Bhuvan: Unavailable';
+  }
+  if (bhuvan.status === 'AVAILABLE' || bhuvan.reachable === true) {
+    return 'Bhuvan: Connected';
+  }
+  return 'Bhuvan: Unavailable';
+}
+
+export function formatSatelliteImageryNote(analysis) {
+  const imagery = analysis?.satelliteImageryProvider || analysis?.satellite_imagery_provider;
+  if (imagery === 'Bhuvan') {
+    return 'Bhuvan WMS imagery retrieved (indices still from local grid lookup).';
+  }
+  if (imagery === 'local_satellite_grid' && analysis?.bhuvan) {
+    return 'Satellite provider unavailable — using local satellite grid.';
+  }
+  return 'Local satellite grid lookup.';
 }
 
 export function formatNdviNdwi(value) {

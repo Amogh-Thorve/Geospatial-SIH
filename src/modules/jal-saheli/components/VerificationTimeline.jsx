@@ -86,10 +86,10 @@ export default function VerificationTimeline({
     : 'Running backend Geo AI…';
   const satSource = formatSatelliteSourceLabel(analysis) || 'Local satellite grid';
   const satDetail = isSatDone
-    ? `Source: ${satSource} · NDVI ${formatNdviNdwi(analysis?.ndvi)} · NDWI ${formatNdviNdwi(analysis?.ndwi)}${
+    ? `Imagery: ${analysis?.satelliteImageryProvider || analysis?.satellite_imagery_provider || 'local satellite grid'} · Source: ${satSource} · NDVI ${formatNdviNdwi(analysis?.ndvi)} · NDWI ${formatNdviNdwi(analysis?.ndwi)}${
         analysis?.satelliteMatch ? ` · ${analysis.satelliteMatch}` : ''
       }`
-    : 'Querying local satellite grid…';
+    : 'Querying satellite providers…';
   const verifyDetail = isVerifiedDone
     ? [
         analysis?.status ? `Status: ${analysis.status}` : null,
@@ -141,7 +141,7 @@ export default function VerificationTimeline({
       id: 'satellite',
       icon: Satellite,
       title: 'Satellite grid lookup',
-      description: 'Local satellite_lookup.npz (not live Bhuvan/Srishti)',
+      description: 'Bhuvan WMS when enabled; indices from local satellite_lookup.npz',
       detail: satDetail,
       isDone: isSatDone,
       isRunning: isSatRunning,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { MapPin, User, Bell, Search, ShieldCheck, Menu } from 'lucide-react';
+import { useApiStatus } from '../../context/ApiStatusContext';
 
 /** Maps route pathnames to human-readable page titles shown in the topbar. */
 const PAGE_TITLES = {
@@ -20,6 +21,7 @@ const PAGE_TITLES = {
  */
 export default function Topbar({ onMenuToggle }) {
   const { pathname } = useLocation();
+  const { status } = useApiStatus();
   const pageTitle = PAGE_TITLES[pathname] ?? 'GeoWise';
 
   return (
@@ -48,7 +50,7 @@ export default function Topbar({ onMenuToggle }) {
 
         <div className="hidden xl:flex items-center space-x-2 text-xs text-slate-500">
           <ShieldCheck className="w-3.5 h-3.5 text-blue-600" aria-hidden="true" />
-          <span>Command System Online</span>
+          <span>{status === 'live' ? 'API connected (demo providers)' : status === 'offline' ? 'Demo / Offline' : 'API status: ' + status}</span>
         </div>
       </div>
 

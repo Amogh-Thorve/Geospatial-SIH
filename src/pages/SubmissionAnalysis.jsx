@@ -1,120 +1,224 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import AnalysisCard from '../components/common/AnalysisCard';
 import StatCard from '../components/common/StatCard';
-import { MOCK_SUBMISSION_DETAIL } from '../data/mockData';
-import { AI_SUBMISSION_ANALYSIS } from '../data/aiMockData';
+import EmptyState from '../components/common/EmptyState';
+import ConnectionBanner from '../components/common/ConnectionBanner';
+import { analyzeSubmission, getAnalysis, getSubmission, listSubmissions } from '../services/geoAiService';
+import { getRecommendation } from '../services/recommendationService';
+import { Loader2 } from 'lucide-react';
 
-const SubmissionAnalysis = () => {
-  const submission = MOCK_SUBMISSION_DETAIL;
-  const ai = AI_SUBMISSION_ANALYSIS;
+export default function SubmissionAnalysis() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const requestedId = params.get('id');
+  const [submissionId, setSubmissionId] = useState(requestedId);
+  const [catalog, setCatalog] = useState([]);
+  const [submission, setSubmission] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [recommendation, setRecommendation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await listSubmissions();
+      setCatalog(list);
+      const targetId = id || requestedId || list[0]?.id;
+      if (!targetId) {
+        setSubmission(null);
+        setAnalysis(null);
+        return;
+      }
+      setSubmissionId(targetId);
+      const sub = await getSubmission(targetId);
+      setSubmission(sub);
+      try {
+        const existing = await getAnalysis(targetId);
+        setAnalysis(existing);
+      } catch {
+        setAnalysis(null);
+      }
+      try {
+        setRecommendation(await getRecommendation(targetId));
+      } catch {
+        setRecommendation(null);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load(requestedId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedId]);
+
+  const xaiReasons = useMemo(() => {
+    if (!analysis?.xai?.explanation) return [];
+    return analysis.xai.explanation.map((text, idx) => ({
+      id: idx,
+      title: analysis.xai.important_features?.[idx]?.feature?.replaceAll('_', ' ') || `Factor ${idx + 1}`,
+      description: text,
+      weight: analysis.xai.important_features?.[idx]
+        ? `${Math.round(analysis.xai.important_features[idx].importance * 100)}%`
+        : 'Demo',
+    }));
+  }, [analysis]);
+
+  const runAnalyze = async () => {
+    if (!submissionId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await analyzeSubmission(submissionId);
+      setAnalysis(result);
+      try {
+        setRecommendation(await getRecommendation(submissionId));
+      } catch {
+        setRecommendation(null);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <div className="submission-analysis-page" style={{ padding: '24px' }}>
-      <PageHeader 
-        title={`Submission Analysis — ${submission.id}`}
-        subtitle={submission.title}
+    <div className="space-y-6">
+      <PageHeader
+        title={submission ? `Submission Analysis — ${submission.id}` : 'Submission Analysis'}
+        subtitle="Geo AI boundary (MockGeoAIProvider). NDVI/NDWI values are simulated unless real bands exist."
         actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn-secondary">Flag for Re-Inspection</button>
-            <button className="btn-primary">Verify Intervention</button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={busy || !submission}
+              onClick={runAnalyze}
+              className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold disabled:opacity-50"
+            >
+              {busy ? 'Analyzing…' : 'Run demo analysis'}
+            </button>
+            {analysis?.anomaly && (
+              <button
+                type="button"
+                onClick={() => navigate('/verification')}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold"
+              >
+                Open verification queue
+              </button>
+            )}
           </div>
         }
       />
+      <ConnectionBanner />
 
-      {/* Submission Meta */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div>
-          <small>Location</small>
-          <div><strong>{submission.location}</strong></div>
-        </div>
-        <div>
-          <small>Coordinates</small>
-          <div><strong>{submission.coordinates}</strong></div>
-        </div>
-        <div>
-          <small>Submitter</small>
-          <div><strong>{submission.submitter.name}</strong></div>
-        </div>
-        <div>
-          <small>Date</small>
-          <div><strong>{submission.timestamp}</strong></div>
-        </div>
+      <div className="flex flex-wrap gap-2">
+        {catalog.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => navigate(`/submission-analysis?id=${item.id}`)}
+            className={`px-2 py-1 rounded text-[11px] font-semibold border ${
+              item.id === submissionId ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200'
+            }`}
+          >
+            {item.id}
+          </button>
+        ))}
       </div>
 
-      {/* Visual Evidence Section */}
-      <h3 style={{ marginBottom: '16px' }}>Visual Evidence</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
-        <div className="image-card" style={{ border: '1px solid #eee', borderRadius: '8px', padding: '12px' }}>
-          <h4>Field Geotagged Image</h4>
-          <img 
-            src={submission.groundPhotoUrl} 
-            alt="Ground level" 
-            style={{ width: '100%', height: '250px', objectFit: 'cover', borderRadius: '4px', marginTop: '8px' }} 
-          />
+      {loading && (
+        <div className="flex items-center py-16 justify-center text-sm text-slate-500">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading analysis…
         </div>
-        <div className="image-card" style={{ border: '1px solid #eee', borderRadius: '8px', padding: '12px' }}>
-          <h4>Sentinel-2 Satellite Image</h4>
-          <img 
-            src={submission.satelliteImageUrl} 
-            alt="Satellite View" 
-            style={{ width: '100%', height: '250px', objectFit: 'cover', borderRadius: '4px', marginTop: '8px' }} 
-          />
-        </div>
-      </div>
+      )}
+      {error && (
+        <EmptyState title="Could not load analysis" message={error} action={<button type="button" className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs" onClick={() => load(submissionId)}>Retry</button>} />
+      )}
 
-      {/* AI Analysis Section */}
-      <h3 style={{ marginBottom: '16px' }}>AI Geospatial Analysis</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-        <StatCard 
-          label="Classification" 
-          value={ai.classification.label} 
-          trend={`${ai.classification.confidence}% Confidence`} 
-        />
-        <StatCard 
-          label="NDVI Change" 
-          value={ai.ndvi.change} 
-          trend={ai.ndvi.interpretation} 
-        />
-        <StatCard 
-          label="NDWI Change" 
-          value={ai.ndwi.change} 
-          trend={ai.ndwi.interpretation} 
-        />
-        <div style={{ border: '1px solid #eee', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <small style={{ color: '#666', marginBottom: '8px' }}>Satellite Match</small>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{ai.satelliteMatch.status}</span>
-            <StatusBadge status={ai.satelliteMatch.statusText} />
+      {!loading && !error && !submission && (
+        <EmptyState title="No submissions" message="Create a submission from Jal Saheli or the API first." />
+      )}
+
+      {!loading && submission && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs bg-white border border-slate-200 rounded-sm p-4">
+            <div><span className="text-slate-500 block">Location</span><strong>{submission.location_label}</strong></div>
+            <div><span className="text-slate-500 block">Coordinates</span><strong>{submission.coordinates}</strong></div>
+            <div><span className="text-slate-500 block">Submitter</span><strong>{submission.submitter_name}</strong></div>
+            <div><span className="text-slate-500 block">Captured</span><strong>{new Date(submission.captured_at).toLocaleString('en-IN')}</strong></div>
           </div>
-          <small style={{ marginTop: '8px', color: '#888' }}>{ai.satelliteMatch.confidence}% Confidence</small>
-        </div>
-      </div>
 
-      {/* Explainable AI (XAI) & Metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-        <AnalysisCard 
-          title="Why was this classified?"
-          subtitle="Explainable AI reasoning for this decision"
-          reasons={ai.xaiReasons}
-        />
-        
-        <div className="technical-metrics" style={{ border: '1px solid #eee', borderRadius: '8px', padding: '20px' }}>
-          <h4 style={{ marginBottom: '16px' }}>Technical Metrics</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {ai.technicalMetrics.map((metric, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f5f5f5', paddingBottom: '8px' }}>
-                <span style={{ color: '#666' }}>{metric.label}</span>
-                <span style={{ fontWeight: '500' }}>{metric.value}</span>
+          {!analysis && (
+            <EmptyState
+              title="No analysis yet"
+              message="Run the demo Geo AI provider for this submission. This does not execute a trained model."
+              action={<button type="button" className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs" onClick={runAnalyze}>Analyze</button>}
+            />
+          )}
+
+          {analysis && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard label="Classification" value={analysis.classification} change={`${Math.round(analysis.confidence * 100)}% confidence · ${analysis.provider}`} />
+                <StatCard label="NDVI" value={analysis.ndvi ?? '—'} change={`${analysis.ndvi_source} value`} />
+                <StatCard label="NDWI" value={analysis.ndwi ?? '—'} change={`${analysis.ndwi_source} value`} />
+                <StatCard label="LULC" value={analysis.lulc} change={analysis.change_detection} />
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="bg-white border border-slate-200 rounded-sm p-4 text-xs">
+                  <p className="text-slate-500 mb-1">Satellite match</p>
+                  <div className="flex items-center gap-2">
+                    <strong className="text-lg">{analysis.satellite_match}</strong>
+                    <StatusBadge status={analysis.anomaly ? 'flagged' : 'verified'} text={analysis.anomaly ? 'Anomaly' : 'Clear'} />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2">Srishti adapter is local/demo. No live satellite download.</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-sm p-4 text-xs lg:col-span-2">
+                  <p className="text-slate-500 mb-1">Recommended intervention</p>
+                  <p className="text-lg font-bold">{recommendation?.intervention || analysis.recommendation || 'Not generated'}</p>
+                  {recommendation && (
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Suitability {Math.round(recommendation.suitability * 100)}% · {recommendation.provider} · {recommendation.method}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <AnalysisCard
+                    title="Why was this classified?"
+                    subtitle={`${analysis.xai?.method || 'rule-based-demo'} — not SHAP`}
+                    reasons={xaiReasons}
+                    confidenceLabel={`${Math.round(analysis.confidence * 100)}% (demo)`}
+                  />
+                </div>
+                <div className="bg-white border border-slate-200 rounded-sm p-5 text-xs space-y-2">
+                  <h4 className="font-bold mb-2">Technical metrics</h4>
+                  {(analysis.xai?.important_features || []).map((f) => (
+                    <div key={f.feature} className="flex justify-between border-b border-slate-100 py-1">
+                      <span className="text-slate-500">{f.feature}</span>
+                      <span className="font-medium">{f.importance}</span>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-slate-400 pt-2">Submission status: {analysis.submission_status}</p>
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   );
-};
-
-export default SubmissionAnalysis;
+}

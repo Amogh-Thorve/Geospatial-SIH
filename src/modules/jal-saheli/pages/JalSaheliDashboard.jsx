@@ -57,7 +57,7 @@ const PIPELINE_STEPS = [
   { id: 'verifications',icon: Brain,        label: 'AI Vision',sub: 'GeoBrain-v3',      color: 'text-violet-600',  bg: 'bg-violet-50 border-violet-100 hover:border-violet-300' },
   { id: 'verifications',icon: Satellite,    label: 'Satellite',sub: 'Sentinel-2 audit', color: 'text-sky-600',     bg: 'bg-sky-50 border-sky-100 hover:border-sky-300' },
   { id: 'verifications',icon: ShieldCheck,  label: 'Verified', sub: 'Officer triage',   color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300' },
-  { id: 'earnings',     icon: IndianRupee,  label: 'Earnings', sub: 'Direct incentive', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300' },
+  { id: 'earnings',     icon: IndianRupee,  label: 'Jal Credits', sub: 'Non-monetary score', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300' },
 ];
 
 function PipelineBanner({ onStepClick }) {
@@ -235,8 +235,8 @@ export default function JalSaheliDashboard({
   const recent = submissions.slice(0, 5);
 
   // Pending and verified counts from live submissions list
-  const livePending  = submissions.filter(s => s.status === 'pending').length;
-  const liveVerified = submissions.filter(s => s.status === 'verified').length;
+  const livePending  = submissions.filter(s => ['pending', 'analyzing', 'analyzed', 'verification_required'].includes(String(s.status).toLowerCase())).length;
+  const liveVerified = submissions.filter(s => String(s.status).toLowerCase() === 'verified').length;
   const displayPending  = livePending  || stats.pendingCount || 0;
   const displayVerified = liveVerified || stats.verifiedCount || 0;
 

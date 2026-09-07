@@ -7,7 +7,7 @@ const statusStyles = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
-export default function LocationPopup({ location, onClose }) {
+export default function LocationPopup({ location, onClose, onAnalyze }) {
   if (!location) {
     return (
       <div className="rounded-md border border-slate-200 bg-white p-4 text-xs text-slate-400">
@@ -64,6 +64,7 @@ export default function LocationPopup({ location, onClose }) {
 
       <button
         type="button"
+        onClick={() => onAnalyze && onAnalyze(location.submissionId || location.id)}
         className="mt-3 w-full rounded border border-slate-300 bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
       >
         View Analysis

@@ -27,7 +27,7 @@
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
@@ -41,7 +41,8 @@ import {
 // ─── TEMPORARY DEVELOPMENT DATA ───────────────────────────────────────────────
 // This import is the ONLY place mock data enters the module.
 // Remove this import and update useVerificationCases() for production.
-import { VERIFICATION_CASES } from '../data/verificationMockData';
+import { listVerificationTasks, updateVerificationTask } from '../services/verificationService';
+import ConnectionBanner from '../components/common/ConnectionBanner';
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,18 +71,49 @@ import { VERIFICATION_CASES } from '../data/verificationMockData';
  *   useEffect(() => { refresh(); }, [refresh]);
  *   return { cases, loading, error, refresh };
  */
+function mapTask(task) {
+  return {
+    id: task.id,
+    priority: task.priority,
+    status: task.status === 'IN_PROGRESS' ? 'IN_PROGRESS' : task.status,
+    title: task.title,
+    intervention: task.intervention,
+    location: task.location,
+    submittedAt: task.submitted_at,
+    aiConfidence: task.ai_confidence,
+    riskScore: task.risk_score,
+    triageReason: task.triage_reason,
+    reasons: task.reasons || [],
+    recommendedAction: task.recommended_action,
+    assignedOfficer: task.assigned_officer,
+    submissionId: task.submission_id,
+  };
+}
+
 function useVerificationCases() {
-  // DEVELOPMENT: mock data is static — no async needed
-  const refresh = useCallback(() => {
-    // TODO: BACKEND INTEGRATION — implement real refetch here
+  const [cases, setCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await listVerificationTasks();
+      setCases(Array.isArray(rows) ? rows.map(mapTask) : []);
+    } catch (e) {
+      setError(e.message);
+      setCases([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return {
-    cases: VERIFICATION_CASES,
-    loading: false,
-    error: null,
-    refresh,
-  };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { cases, loading, error, refresh, setCases };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,8 +136,10 @@ function getStatusMeta(status) {
   switch (status) {
     case 'PENDING':          return { label: 'Pending',          badge: 'pending'  };
     case 'ASSIGNED':         return { label: 'Assigned',         badge: 'info'     };
-    case 'IN_FIELD':         return { label: 'In Field',         badge: 'warning'  };
-    case 'REQUIRES_REVIEW':  return { label: 'Requires Review',  badge: 'flagged'  };
+    case 'IN_PROGRESS':
+    case 'IN_FIELD':         return { label: 'In progress',      badge: 'warning'  };
+    case 'NEEDS_REVIEW':
+    case 'REQUIRES_REVIEW':  return { label: 'Needs review',     badge: 'flagged'  };
     case 'AUTO_CLEARED':     return { label: 'Auto-Cleared',     badge: 'verified' };
     case 'VERIFIED':         return { label: 'Verified',         badge: 'verified' };
     case 'REJECTED':         return { label: 'Rejected',         badge: 'high'     };
@@ -144,9 +178,9 @@ function computeSummary(cases) {
   return {
     total:       cases.length,
     high:        cases.filter(c => c.priority === 'HIGH').length,
-    pending:     cases.filter(c => ['PENDING', 'REQUIRES_REVIEW'].includes(c.status)).length,
+    pending:     cases.filter(c => ['PENDING', 'NEEDS_REVIEW', 'REQUIRES_REVIEW'].includes(c.status)).length,
     autocleared: cases.filter(c => c.status === 'AUTO_CLEARED').length,
-    inField:     cases.filter(c => c.status === 'IN_FIELD').length,
+    inField:     cases.filter(c => ['IN_FIELD', 'IN_PROGRESS', 'ASSIGNED'].includes(c.status)).length,
   };
 }
 
@@ -354,7 +388,7 @@ function TriageReasons({ triageReason, reasons, priority }) {
 }
 
 // ── Case card (collapsed + expandable) ───────────────────────────────────────
-function CaseCard({ caseItem, expanded, onToggle }) {
+function CaseCard({ caseItem, expanded, onToggle, onAction, actionError }) {
   const pm     = getPriorityMeta(caseItem.priority);
   const sm     = getStatusMeta(caseItem.status);
   const age    = formatAge(caseItem.submittedAt);
@@ -525,19 +559,34 @@ function CaseCard({ caseItem, expanded, onToggle }) {
               {/* Cross-module links use the authoritative application routes. */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <a
-                  href="/gis-map"
+                  href={`/gis-map?id=${caseItem.submissionId || caseItem.id}`}
                   className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-sky-600 hover:text-sky-700 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded transition-colors"
-                  title="Open GIS Map — case auto-centering requires backend integration"
                 >
                   <MapPin className="w-3 h-3" /> View on GIS Map
                 </a>
                 <a
-                  href="/submission-analysis"
+                  href={`/submission-analysis?id=${caseItem.submissionId || ''}`}
                   className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 px-3 py-1.5 rounded transition-colors"
                 >
                   <ArrowRight className="w-3 h-3" /> View Submission
                 </a>
               </div>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {['ASSIGNED', 'IN_PROGRESS', 'VERIFIED', 'NEEDS_REVIEW', 'REJECTED'].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onAction) onAction(caseItem.id, status);
+                    }}
+                    className="px-2 py-1 text-[10px] font-bold rounded border border-slate-300 bg-white hover:bg-slate-100"
+                  >
+                    {status.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+              {actionError && <p className="text-[11px] text-rose-600">{actionError}</p>}
             </div>
 
           </div>
@@ -559,6 +608,21 @@ const PIPELINE_STAGES = [
 
 export default function VerificationQueue() {
   const { cases, loading, error, refresh } = useVerificationCases();
+  const [actionError, setActionError] = useState(null);
+
+  const handleAction = async (taskId, status) => {
+    setActionError(null);
+    try {
+      await updateVerificationTask(taskId, {
+        status,
+        assigned_officer: status === 'ASSIGNED' ? 'Officer M. Rao' : undefined,
+        notes: `Status set to ${status} from Verification Queue`,
+      });
+      await refresh();
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
 
   // Local UI state — never substitutes for real server data
   const [search, setSearch]         = useState('');
@@ -608,7 +672,7 @@ export default function VerificationQueue() {
         }
       />
 
-      {/* ── Pipeline Stage Breadcrumb ── */}
+      <ConnectionBanner />
       <div className="flex items-center gap-1 text-[10px] font-medium overflow-x-auto pb-0.5 select-none whitespace-nowrap">
         {PIPELINE_STAGES.map((stage, i, arr) => (
           <React.Fragment key={stage}>
@@ -692,6 +756,8 @@ export default function VerificationQueue() {
               caseItem={c}
               expanded={expandedId === c.id}
               onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
+              onAction={handleAction}
+              actionError={actionError}
             />
           ))}
         </div>
@@ -701,7 +767,7 @@ export default function VerificationQueue() {
       {!loading && !error && (
         <div className="text-[10px] text-slate-400 text-center py-2 italic">
           {/* TODO: BACKEND INTEGRATION — remove this note when real data is wired */}
-          Development view — displaying mock data from verificationMockData.js. Replace useVerificationCases() with real fetch() when backend is available.
+          Live queue from GET /api/verification/tasks. Status updates call PATCH and store closed-loop feedback.
         </div>
       )}
     </div>

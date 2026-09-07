@@ -184,8 +184,8 @@ export const MOCK_SUBMISSION_DETAIL = {
   satelliteMatchStatus: "verified", // verified | mismatch | pending
   ndviChange: "+18%",
   ndwiChange: "+0.32",
-  groundPhotoUrl: "https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=800&q=80",
-  satelliteImageUrl: "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=800&q=80",
+  groundPhotoUrl: "https://images.unsplash.com/photo-1590496793929-36417d3117de?w=800&auto=format&fit=crop",
+  satelliteImageUrl: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=800&auto=format&fit=crop",
   xaiReasons: [
     {
       id: 1,

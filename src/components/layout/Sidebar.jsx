@@ -67,9 +67,9 @@ export default function Sidebar() {
       <div className="p-4 border-t border-slate-800 text-xs text-slate-400 bg-slate-950/40">
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="font-medium text-slate-300">GeoBrain Model v2.4</span>
+          <span className="font-medium text-slate-300">GeoBrain RF Model (84.8% Acc)</span>
         </div>
-        <p className="mt-1 text-[11px] text-slate-400">Sentinel-2 Sync: Active</p>
+        <p className="mt-1 text-[11px] text-slate-400">Srishti IRS-R2A Sync: Active</p>
       </div>
     </aside>
   );

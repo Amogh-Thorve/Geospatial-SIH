@@ -65,15 +65,25 @@ def settings() -> Settings:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Database fixture
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest_asyncio.fixture(scope="session")
 async def init_test_db(settings: Settings):
     """
-    Initialise an in-memory SQLite database for the test session.
-    Tables are created from ORM models and dropped after all tests run.
+    Initialise an SQLite database for the test session.
+    Removes any stale test database file first so table schemas are always current.
     """
+    import app.models  # noqa: F401 — register all ORM models with Base.metadata
+
+    test_db_file = Path(__file__).parent.parent / "jal_saheli_test.db"
+    if test_db_file.exists():
+        try:
+            test_db_file.unlink()
+        except Exception:
+            pass
+
     await init_db(
         database_url=settings.database.url,
         echo=False,
@@ -81,6 +91,12 @@ async def init_test_db(settings: Settings):
     )
     yield
     await close_db()
+    if test_db_file.exists():
+        try:
+            test_db_file.unlink()
+        except Exception:
+            pass
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -108,3 +124,29 @@ async def client(test_app, init_test_db) -> AsyncGenerator[AsyncClient, None]:
         base_url="http://testserver",
     ) as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def registered_cadre(client: AsyncClient):
+    """
+    Helper fixture: creates a unique registered cadre and returns
+    its credentials + authorization headers.
+    """
+    import uuid
+    phone = f"+9198{uuid.uuid4().int % 100000000:08d}"
+    payload = {
+        "name": "Sunita Devi",
+        "phone": phone,
+        "village": "Kalyanpur",
+        "telegram_handle": "@sunita_jal",
+    }
+    resp = await client.post("/api/jal-saheli/auth/register", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    return {
+        "token": data["access_token"],
+        "cadre_id": data["cadre_id"],
+        "name": data["name"],
+        "phone": phone,
+        "headers": {"Authorization": f"Bearer {data['access_token']}"},
+    }

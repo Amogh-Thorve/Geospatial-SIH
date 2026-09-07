@@ -153,16 +153,17 @@ def create_app() -> FastAPI:
         Return structured 422 errors that are readable by frontend clients.
         Never expose internal stack traces.
         """
+        from fastapi.encoders import jsonable_encoder
         logger.warning(
             "Request validation error",
-            extra={"path": str(request.url), "errors": exc.errors()},
+            extra={"path": str(request.url), "errors": jsonable_encoder(exc.errors())},
         )
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
                 "error": "validation_error",
                 "message": "Request payload validation failed",
-                "detail": exc.errors(),
+                "detail": jsonable_encoder(exc.errors()),
             },
         )
 

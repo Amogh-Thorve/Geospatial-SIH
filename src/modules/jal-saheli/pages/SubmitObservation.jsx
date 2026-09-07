@@ -43,13 +43,13 @@ import SatelliteVerification from '../components/SatelliteVerification';
 import VerificationResult   from '../components/VerificationResult';
 import VerificationTimeline from '../components/VerificationTimeline';
 
-import { submitObservation, getObservationTypes, recordSubmission, getProfile } from '../services/jalSaheliApi';
+import { submitObservation, getObservationTypes, getProfile } from '../services/jalSaheliApi';
 import {
   flowReducer,
   initialFlowState,
   SUBMISSION_STATES,
   FLOW_STEPS,
-  runDemoFlow,
+  pollVerificationStatus,
 } from '../utils/submissionFlow';
 
 // ---------------------------------------------------------------------------
@@ -187,18 +187,13 @@ export default function SubmitObservation({ onNavigateBack }) {
         submissionId: result.submissionId,
       });
 
-      // Launch centralized deterministic demo flow (7.2s pipeline)
-      cancelDemoRef.current = runDemoFlow(
+      // Launch centralized polling flow
+      cancelDemoRef.current = pollVerificationStatus(
         dispatch,
-        {
-          observationType: state.observationType,
-          reward: state.observationType?.reward ?? 25,
-          submissionId: result.submissionId,
-          location: state.location,
-          photo: state.photo,
-        },
-        (finalSub) => {
-          recordSubmission(finalSub);
+        result.submissionId,
+        state.observationType?.reward ?? 25,
+        (_finalSub) => {
+          // You could optionally do something here when it's done
         }
       );
 

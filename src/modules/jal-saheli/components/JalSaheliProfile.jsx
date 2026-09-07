@@ -4,7 +4,7 @@
  * avatar initials, name, cadre role, village, phone, member duration, and performance rank.
  *
  * Props:
- *   profile  — MOCK_PROFILE shape from data/mockProfile.js (required)
+ *   profile  - CadreProfile shape from jalSaheliApi.getProfile() (required)
  *   compact  — boolean, renders a slimmer single-row variant (optional)
  */
 

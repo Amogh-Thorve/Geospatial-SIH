@@ -183,7 +183,7 @@ export default function AIProcessing({
               </div>
               <div className="flex items-start gap-2 text-slate-700">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span>Shoreline contour boundary matched with 94% edge confidence</span>
+                <span>Shoreline contour boundary matched with high edge confidence</span>
               </div>
               <div className="flex items-start gap-2 text-slate-700">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />

@@ -4,7 +4,7 @@
  * Used in the "Recent Submissions" list on the dashboard.
  *
  * Props:
- *   submission   — one entry from MOCK_SUBMISSIONS (required)
+ *   submission   - one entry from jalSaheliApi.getSubmissions() (required)
  *   onClick      — optional callback when the card is clicked
  */
 

@@ -3,7 +3,7 @@
  * Shows total credited cadre earnings, current-cycle amount, and observation type breakdown.
  *
  * Props:
- *   summary    — MOCK_EARNINGS_SUMMARY shape from data/mockEarnings.js (required)
+ *   summary    - EarningsSummary shape from jalSaheliApi.getEarningsSummary() (required)
  *   compact    — boolean, renders a minimal balance-only view (optional)
  *   onViewAll  — fn() to navigate to full earnings ledger
  */

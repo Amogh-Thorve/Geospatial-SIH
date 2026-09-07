@@ -3,17 +3,14 @@
  * Central state machine for the Jal Saheli observation submission flow.
  *
  * UI components must NOT contain their own setTimeout chains or ad-hoc status logic.
- * All flow transitions, delays, and deterministic demo results live here.
+ * All flow state transitions and polling logic live here.
  *
  * State machine:
- *   idle → photo_uploaded → location_set → submitted
- *        → ai_processing → ai_complete
- *        → satellite_processing → satellite_complete
- *        → verified | rejected | failed
- *        → earnings_added
+ *   SUBMITTED → AI_PROCESSING → AI_COMPLETE → SATELLITE_PROCESSING
+ *   → SATELLITE_COMPLETE → FINAL_VERIFICATION → VERIFIED | REJECTED
  *
- * Usage:
- *   import { SUBMISSION_STATES, FLOW_STEPS, runDemoFlow } from '../utils/submissionFlow';
+ * Integration:
+ *   import { SUBMISSION_STATES, FLOW_STEPS, pollVerificationStatus } from '../utils/submissionFlow';
  */
 
 // ---------------------------------------------------------------------------
@@ -148,205 +145,89 @@ export const FLOW_STEPS = [
   },
 ];
 
+// No DEMO_RESULT needed anymore. UI expects real data from backend.
+// Real flow timing is dependent on backend processing speed.
 // ---------------------------------------------------------------------------
-// 3. Deterministic demo result
-// These are the fixed values shown at the end of every demo run.
-// Replace with real API results when backend/AI is connected.
-// ---------------------------------------------------------------------------
-
-export const DEMO_RESULT = {
-  observationType: 'Water Body',   // Shown when no type selected
-  location: 'Field Location',
-  aiConfidence: 92,
-  aiConfidenceDisplay: '92%',
-  satelliteConfidence: 96,
-  satelliteConfidenceDisplay: '96%',
-  finalConfidence: 95,
-  finalConfidenceDisplay: '95%',
-  status: 'verified',
-  reward: 25,
-  rewardDisplay: '₹25',
-  submissionId: null, // set at runtime (e.g. 'GW-' + timestamp)
-
-  // AI classification detail
-  aiClassification: {
-    label: 'Water Body Detected',
-    reasons: [
-      'High NDWI spectral signature consistent with open water surface',
-      'Shoreline boundary detected with 94% edge-feature confidence',
-      'Seasonal water accumulation pattern matches monsoon inflow model',
-    ],
-  },
-
-  // Satellite result detail
-  satelliteResult: {
-    source: 'Sentinel-2 L2A (10m resolution)',
-    band: 'B3/B8 NDWI composite',
-    ndwiDelta: '+0.38',
-    changeDetected: true,
-    label: 'Water Body Confirmed',
-  },
-
-  // Multilingual final result
-  resultText: {
-    en: 'Your observation has been verified. The water body is confirmed by both AI and Sentinel-2 satellite imagery.',
-    mr: 'तुमचे निरीक्षण सत्यापित झाले आहे. एआय आणि सेंटिनेल-२ उपग्रह प्रतिमा दोन्हींद्वारे जलाशयाची पुष्टी झाली आहे.',
-    hi: 'आपका अवलोकन सत्यापित हो गया है। एआई और सेंटिनल-2 उपग्रह चित्रों दोनों द्वारा जल निकाय की पुष्टि की गई है।',
-  },
-};
-
-// ---------------------------------------------------------------------------
-// 4. Timing constants (all in milliseconds)
+// 5. Flow runner (Polling Backend)
 // ---------------------------------------------------------------------------
 
-export const DEMO_DELAYS = {
-  SUBMIT_TO_PHOTO_RECEIVED: 500,     // Photo payload received on server
-  PHOTO_TO_AI_GAP: 500,              // Handover to GeoBrain-v3 AI model
-  AI_PROCESSING_DURATION: 1800,      // AI vision inference
-  AI_TO_SAT_GAP: 600,               // Handover to Sentinel-2 satellite audit
-  SAT_PROCESSING_DURATION: 1800,     // Sentinel-2 spectral & NDWI analysis
-  SAT_TO_FINAL_GAP: 500,             // Consensus & correlation synthesis
-  FINAL_VERIFICATION_DURATION: 800,  // Final score resolution
-  VERIFIED_TO_EARNINGS: 700,        // Incentive credited
-};
-
-// Total approximate flow time: 7.2 seconds (within 5–8 second target)
-
-// ---------------------------------------------------------------------------
-// 5. Flow runner
-// Accepts dispatch and payload, drives deterministic demo sequence.
-// Returns a cancel() function to abort pending timers.
-// ---------------------------------------------------------------------------
+import { getSubmissionStatus, getSubmissionById } from '../services/jalSaheliApi';
 
 /**
- * runDemoFlow(dispatch, payloadOrType, rewardArg, onCompleteArg)
- *
- * Sequence:
- *   SUBMIT → PHOTO_RECEIVED → AI_PROCESSING → AI_COMPLETE →
- *   SATELLITE_PROCESSING → SATELLITE_COMPLETE → FINAL_VERIFICATION →
- *   VERIFIED → EARNINGS_ADDED
+ * Polls the backend status and dispatches updates.
+ * Returns a cancel function.
  */
-export function runDemoFlow(dispatch, payloadOrType = 'Water Body', rewardArg = 25, onCompleteArg = null) {
-  const timers = [];
+export function pollVerificationStatus(dispatch, submissionId, rewardArg, onComplete) {
+  let isCancelled = false;
+  let timerId = null;
 
-  const after = (ms, fn) => {
-    const id = setTimeout(fn, ms);
-    timers.push(id);
-    return id;
-  };
+  async function poll() {
+    if (isCancelled) return;
+    try {
+      const statusRes = await getSubmissionStatus(submissionId);
+      
+      // Map backend status to flow states
+      let mappedState = SUBMISSION_STATES.SUBMITTED;
+      if (statusRes.status === 'processing') {
+        if (statusRes.satellite_confidence) mappedState = SUBMISSION_STATES.SATELLITE_COMPLETE;
+        else if (statusRes.ai_confidence) mappedState = SUBMISSION_STATES.AI_COMPLETE;
+        else mappedState = SUBMISSION_STATES.AI_PROCESSING;
+      } else if (statusRes.status === 'verified') {
+        mappedState = SUBMISSION_STATES.VERIFIED;
+      } else if (statusRes.status === 'rejected' || statusRes.status === 'failed') {
+        mappedState = SUBMISSION_STATES.REJECTED;
+      }
 
-  const cancel = () => timers.forEach(clearTimeout);
+      dispatch({ type: 'SET_STATE', state: mappedState });
 
-  // Normalize arguments for both payload object and legacy positional params
-  let observationType = 'Water Body';
-  let reward = 25;
-  let submissionId = null;
-  let location = null;
-  let photo = null;
-  let onComplete = null;
+      if (statusRes.status === 'verified' || statusRes.status === 'rejected' || statusRes.status === 'failed') {
+        // Fetch full result
+        const finalSubmission = await getSubmissionById(submissionId);
+        
+        // Dispatch verified
+        dispatch({
+          type: 'SET_VERIFIED',
+          state: mappedState,
+          verificationResult: finalSubmission.verification_result,
+          reward: rewardArg,
+        });
 
-  if (typeof payloadOrType === 'object' && payloadOrType !== null && !payloadOrType.label) {
-    observationType = payloadOrType.observationType || 'Water Body';
-    reward = typeof payloadOrType.reward === 'number' ? payloadOrType.reward : 25;
-    submissionId = payloadOrType.submissionId;
-    location = payloadOrType.location;
-    photo = payloadOrType.photo;
-    onComplete = typeof rewardArg === 'function' ? rewardArg : onCompleteArg;
-  } else {
-    observationType = payloadOrType;
-    reward = typeof rewardArg === 'number' ? rewardArg : 25;
-    onComplete = typeof onCompleteArg === 'function' ? onCompleteArg : null;
+        // Add earnings state if verified
+        if (statusRes.status === 'verified') {
+          setTimeout(() => {
+            if (!isCancelled) {
+              dispatch({
+                type: 'SET_EARNINGS',
+                state: SUBMISSION_STATES.EARNINGS_ADDED,
+                reward: rewardArg,
+                finalSubmission,
+              });
+              if (onComplete) onComplete(finalSubmission);
+            }
+          }, 1000);
+        } else {
+          if (onComplete) onComplete(finalSubmission);
+        }
+        return; // Stop polling
+      }
+    } catch (err) {
+      console.error("Polling error:", err);
+      // Wait and try again
+    }
+
+    // Schedule next poll
+    if (!isCancelled) {
+      timerId = setTimeout(poll, 2000);
+    }
   }
 
-  const sid = submissionId || generateSubmissionId();
-  const typeLabel = typeof observationType === 'object' ? (observationType.label || 'Water Body') : observationType;
-  const typeId = typeof observationType === 'object' ? (observationType.id || 'water_body') : 'water_body';
+  // Start polling
+  poll();
 
-  // 1. SUBMIT -> PHOTO_RECEIVED
-  after(DEMO_DELAYS.SUBMIT_TO_PHOTO_RECEIVED, () => {
-    dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.PHOTO_RECEIVED });
-
-    // 2. PHOTO_RECEIVED -> AI_PROCESSING
-    after(DEMO_DELAYS.PHOTO_TO_AI_GAP, () => {
-      dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.AI_PROCESSING });
-
-      // 3. AI_PROCESSING -> AI_COMPLETE
-      after(DEMO_DELAYS.AI_PROCESSING_DURATION, () => {
-        dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.AI_COMPLETE });
-
-        // 4. AI_COMPLETE -> SATELLITE_PROCESSING
-        after(DEMO_DELAYS.AI_TO_SAT_GAP, () => {
-          dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.SATELLITE_PROCESSING });
-
-          // 5. SATELLITE_PROCESSING -> SATELLITE_COMPLETE
-          after(DEMO_DELAYS.SAT_PROCESSING_DURATION, () => {
-            dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.SATELLITE_COMPLETE });
-
-            // 6. SATELLITE_COMPLETE -> FINAL_VERIFICATION
-            after(DEMO_DELAYS.SAT_TO_FINAL_GAP, () => {
-              dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.FINAL_VERIFICATION });
-
-              // 7. FINAL_VERIFICATION -> VERIFIED
-              after(DEMO_DELAYS.FINAL_VERIFICATION_DURATION, () => {
-                const verificationResult = {
-                  ...DEMO_RESULT,
-                  submissionId: sid,
-                  observationType: typeLabel,
-                  reward,
-                  rewardDisplay: `₹${reward}`,
-                  verifiedAt: new Date().toISOString(),
-                };
-
-                dispatch({
-                  type: 'SET_VERIFIED',
-                  state: SUBMISSION_STATES.VERIFIED,
-                  verificationResult,
-                  reward,
-                });
-
-                // 8. VERIFIED -> EARNINGS_ADDED
-                after(DEMO_DELAYS.VERIFIED_TO_EARNINGS, () => {
-                  const finalSubmission = {
-                    id: sid,
-                    submitterId: 'JS-CADRE',
-                    type: typeId,
-                    typeLabel,
-                    status: 'verified',
-                    aiConfidence: DEMO_RESULT.aiConfidence,
-                    satelliteConfidence: DEMO_RESULT.satelliteConfidence,
-                    finalConfidence: DEMO_RESULT.finalConfidence,
-                    reward,
-                    earnings: reward,
-                    earningsDisplay: `₹${reward}`,
-                    verifiedAt: new Date().toISOString(),
-                    dateDisplay: new Date().toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' }),
-                    timeDisplay: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-                    channel: 'web',
-                    verificationResult,
-                    location: location || { label: 'Field Location', lat: null, lng: null },
-                    photoUrl: photo?.previewUrl || null,
-                  };
-
-                  dispatch({
-                    type: 'SET_EARNINGS',
-                    state: SUBMISSION_STATES.EARNINGS_ADDED,
-                    reward,
-                    finalSubmission,
-                  });
-
-                  if (onComplete) {
-                    onComplete(finalSubmission);
-                  }
-                });
-              });
-            });
-          });
-        });
-      });
-    });
-  });
-
-  return cancel;
+  return () => {
+    isCancelled = true;
+    if (timerId) clearTimeout(timerId);
+  };
 }
 
 // ---------------------------------------------------------------------------

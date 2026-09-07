@@ -29,11 +29,11 @@ import {
   ArrowLeft,
   Sparkles,
 } from 'lucide-react';
-import { DEMO_RESULT } from '../utils/submissionFlow';
+
 import LocalLanguageResult from './LocalLanguageResult';
 
 export default function VerificationResult({
-  result = DEMO_RESULT,
+  result = {},
   observationType = 'Water Body',
   reward = 25,
   location = null,
@@ -59,9 +59,9 @@ export default function VerificationResult({
       ? location.label || 'Field Location'
       : location || 'Field Location';
 
-  const aiConf = result?.aiConfidence ?? DEMO_RESULT.aiConfidence;
-  const satConf = result?.satelliteConfidence ?? DEMO_RESULT.satelliteConfidence;
-  const finalConf = result?.finalConfidence ?? DEMO_RESULT.finalConfidence;
+  const aiConf = result?.aiConfidence ?? 0;
+  const satConf = result?.satelliteConfidence ?? 0;
+  const finalConf = result?.finalConfidence ?? 0;
   const subId = result?.submissionId || 'GW-REF';
 
 

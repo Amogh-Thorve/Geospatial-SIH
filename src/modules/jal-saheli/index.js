@@ -56,9 +56,7 @@ export * as jalSaheliApi from './services/jalSaheliApi';
 export {
   SUBMISSION_STATES,
   FLOW_STEPS,
-  DEMO_RESULT,
-  DEMO_DELAYS,
-  runDemoFlow,
+  pollVerificationStatus,
   flowReducer,
   initialFlowState,
   generateSubmissionId,

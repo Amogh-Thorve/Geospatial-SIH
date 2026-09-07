@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import text
+from sqlalchemy import text, event
 
 logger = logging.getLogger("jal_saheli.db")
 
@@ -64,11 +64,20 @@ def _build_engine(database_url: str, pool_size: int, max_overflow: int, echo: bo
     if is_sqlite:
         # SQLite requires check_same_thread=False for async usage
         connect_args["check_same_thread"] = False
+        connect_args["timeout"] = 60
         engine = create_async_engine(
             database_url,
             echo=echo,
             connect_args=connect_args,
         )
+
+        @event.listens_for(engine.sync_engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=60000")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.close()
     else:
         engine = create_async_engine(
             database_url,
@@ -120,6 +129,11 @@ async def init_db(
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created (create_tables=True)")
 
+    if database_url.startswith("sqlite"):
+        async with _engine.begin() as conn:
+            await conn.execute(text("PRAGMA journal_mode=WAL"))
+            await conn.execute(text("PRAGMA busy_timeout=30000"))
+
     # Smoke-test the connection
     try:
         async with _engine.connect() as conn:
@@ -140,6 +154,11 @@ async def close_db() -> None:
         await _engine.dispose()
         _engine = None
         logger.info("Database engine disposed")
+
+
+def get_async_sessionmaker() -> async_sessionmaker[AsyncSession] | None:
+    """Return the global session factory for background tasks."""
+    return _async_session_factory
 
 
 async def check_db_connection() -> bool:

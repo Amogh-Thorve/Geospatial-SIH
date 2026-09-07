@@ -76,10 +76,10 @@ See [`.env.example`](.env.example) for the complete reference with documentation
 | App | `APP_ENV`, `DEBUG`, `HOST`, `PORT` |
 | Database | `DATABASE_URL`, `DB_POOL_SIZE` |
 | Auth | `JWT_SECRET_KEY`, `JWT_ALGORITHM` |
-| Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_URL` |
-| AI | `AI_SERVICE_URL`, `AI_SERVICE_API_KEY` |
-| Satellite | `SENTINEL_USERNAME`, `SENTINEL_PASSWORD` |
-| Storage | `STORAGE_BACKEND`, `LOCAL_STORAGE_DIR` |
+| Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_URL`, `TELEGRAM_WEBHOOK_SECRET` |
+| AI | `AI_SERVICE_URL`, `AI_SERVICE_API_KEY`, `AI_REQUEST_TIMEOUT_SECONDS` |
+| Satellite | `SENTINEL_USERNAME`, `SENTINEL_PASSWORD`, `SENTINELHUB_CLIENT_ID`, `SENTINELHUB_CLIENT_SECRET` |
+| Storage | `STORAGE_BACKEND`, `LOCAL_STORAGE_DIR`, `MAX_PHOTO_SIZE_BYTES` |
 | CORS | `CORS_ORIGINS` |
 
 ---
@@ -101,61 +101,86 @@ pytest tests/test_health.py -v
 
 Tests use `.env.test` automatically — **no PostgreSQL or external credentials needed**.
 
----
-
-## Project Structure
-
-```
-backend/jal_saheli/
-├── app/
-│   ├── main.py              ← FastAPI app factory + lifespan
-│   ├── config.py            ← Typed settings from env vars
-│   ├── logging_config.py    ← Structured JSON logging
-│   ├── api/
-│   │   ├── router.py        ← Root API router
-│   │   └── health.py        ← GET /health
-│   ├── db/
-│   │   └── database.py      ← Async SQLAlchemy engine + session
-│   ├── models/              ← ORM models (Phase 2)
-│   ├── schemas/             ← Pydantic request/response schemas (Phase 3)
-│   ├── services/            ← Business logic (Phase 3+)
-│   ├── integrations/        ← External service clients (Phase 5–7)
-│   └── utils/               ← Shared utilities (Phase 3+)
-├── tests/
-│   ├── conftest.py          ← pytest fixtures
-│   ├── test_config.py       ← Settings validation tests
-│   ├── test_startup.py      ← App startup and CORS tests
-│   └── test_health.py       ← Health endpoint tests
-├── migrations/              ← Alembic migrations (Phase 2)
-├── .env.example             ← Environment variable template
-├── .env.test                ← Test environment (SQLite)
-├── requirements.txt         ← Runtime dependencies
-├── requirements-dev.txt     ← Dev + test dependencies
-└── pyproject.toml           ← pytest + ruff config
-```
+Current test suite: **202 tests** covering auth, submissions, verification, earnings, notifications, Telegram bot, AI analysis, satellite verification, and security.
 
 ---
 
 ## API Endpoints
 
-### Phase 1 (current)
+### Core
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Backend health check |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/health` | No | Backend health check (DB, storage, integrations) |
 
-### Phase 3 (planned)
+### Authentication
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/jal-saheli/profile` | Cadre profile + stats |
-| `GET` | `/api/jal-saheli/submissions` | List submissions |
-| `POST` | `/api/jal-saheli/submissions` | Submit observation |
-| `GET` | `/api/jal-saheli/submissions/:id/ai-result` | AI analysis result |
-| `GET` | `/api/jal-saheli/submissions/:id/satellite-result` | Satellite result |
-| `GET` | `/api/jal-saheli/submissions/:id/verification` | Final verification |
-| `GET` | `/api/jal-saheli/earnings` | Earnings ledger |
-| `GET` | `/api/jal-saheli/earnings/summary` | Earnings summary |
+| Method | Path | Rate Limit | Description |
+|---|---|---|---|
+| `POST` | `/api/jal-saheli/auth/register` | 10/min | Cadre registration + JWT |
+| `POST` | `/api/jal-saheli/auth/login` | 10/min | Phone login + JWT |
+
+### Profile
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/jal-saheli/profile` | JWT | Cadre profile + live aggregated stats |
+
+### Submissions
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/jal-saheli/submissions` | JWT | Paginated submission list |
+| `POST` | `/api/jal-saheli/submissions` | JWT | Create ground observation (multipart) |
+| `GET` | `/api/jal-saheli/submissions/{id}` | JWT | Submission detail (owner-isolated) |
+| `GET` | `/api/jal-saheli/submissions/{id}/status` | JWT | Lightweight status for polling |
+
+### Verification and Analysis
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/jal-saheli/submissions/{id}/ai-result` | JWT | AI analysis result |
+| `GET` | `/api/jal-saheli/submissions/{id}/satellite-result` | JWT | Satellite cross-check |
+| `GET` | `/api/jal-saheli/submissions/{id}/verification` | JWT | Final consensus result |
+| `POST` | `/api/jal-saheli/submissions/{id}/verify` | JWT | Trigger verification pipeline |
+| `GET` | `/api/jal-saheli/verification-history` | JWT | Terminal decisions history |
+
+### Earnings
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/jal-saheli/earnings` | JWT | Paginated earnings ledger |
+| `GET` | `/api/jal-saheli/earnings/summary` | JWT | Aggregated earnings + breakdown |
+
+### Telegram
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/telegram/webhook` | Webhook Secret | Telegram bot update handler |
+
+---
+
+## Telegram Bot Setup
+
+1. Create a bot via @BotFather and obtain the token
+2. Set `TELEGRAM_BOT_TOKEN` in `.env`
+3. For webhook mode (production): set `TELEGRAM_WEBHOOK_URL` and `TELEGRAM_WEBHOOK_SECRET`
+4. The bot supports `/start`, `/help`, `/status`, `/cancel` commands
+5. Languages: English, Hindi, Marathi
+
+## AI Service Setup
+
+1. Deploy or connect to a vision AI inference endpoint
+2. Set `AI_SERVICE_URL` to the endpoint URL
+3. Set `AI_SERVICE_API_KEY` if authentication is required
+4. If unconfigured, the system returns `AI_NOT_CONFIGURED` (confidence = 0)
+
+## Satellite Service Setup
+
+1. Register at Copernicus Data Space (https://dataspace.copernicus.eu/) (free)
+2. Set `SENTINEL_USERNAME` and `SENTINEL_PASSWORD`
+3. Alternative: Use Sentinel Hub OAuth credentials
+4. If unconfigured, the system returns `SATELLITE_NOT_CONFIGURED` (confidence = 0)
 
 ---
 
@@ -167,9 +192,26 @@ Set in the frontend `.env.local`:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-The frontend's [`jalSaheliApi.js`](../../src/modules/jal-saheli/services/jalSaheliApi.js) will
-automatically use the real backend when this variable is set,
-falling back to in-memory demo mode when it is empty.
+The frontend connects to the real backend using this URL and shows error states if the backend is unavailable.
+
+---
+
+## Database
+
+### Development (SQLite)
+No setup needed. Tables auto-create on startup when `APP_ENV=development`.
+
+### Production (PostgreSQL)
+```bash
+DATABASE_URL=postgresql+asyncpg://user:password@host:5432/jal_saheli_db
+alembic upgrade head
+```
+
+### Tables
+- `cadre_profiles` — Field worker identity and registration
+- `submissions` — Ground observations with coordinates and photos
+- `earnings_ledger` — Incentive transactions with idempotency
+- `verification_events` — AI/satellite/final audit trail
 
 ---
 
@@ -180,7 +222,7 @@ falling back to in-memory demo mode when it is empty.
 # Generate a real JWT secret:
 python -c "import secrets; print(secrets.token_hex(32))"
 
-# Run migrations (Phase 2+)
+# Run migrations
 alembic upgrade head
 
 # Start with production workers
@@ -188,3 +230,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 Use Nginx or Caddy as a reverse proxy for HTTPS termination.
+
+### Production Checklist
+- [ ] `JWT_SECRET_KEY` — generate a real random secret
+- [ ] `DATABASE_URL` — PostgreSQL connection string
+- [ ] `APP_ENV=production` — disables Swagger docs and auto table creation
+- [ ] `CORS_ORIGINS` — restrict to your production domain
+- [ ] `TELEGRAM_WEBHOOK_SECRET` — set for webhook auth
+- [ ] HTTPS termination via reverse proxy

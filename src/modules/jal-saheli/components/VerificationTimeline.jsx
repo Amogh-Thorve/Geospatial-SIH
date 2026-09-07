@@ -134,7 +134,7 @@ export default function VerificationTimeline({
           </h3>
         </div>
         <span className="text-[10px] font-mono text-slate-400">
-          Deterministic Demo Log
+          Live Audit Trail
         </span>
       </div>
 

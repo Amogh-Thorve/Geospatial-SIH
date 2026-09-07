@@ -42,7 +42,6 @@ export default function GISMapPage() {
       </div>
 
       <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
-        {/* Map area */}
         <div className="min-h-[420px] lg:min-h-0">
           <MapView
             locations={mapLocations}
@@ -52,14 +51,10 @@ export default function GISMapPage() {
           />
         </div>
 
-        {/* Side panel: controls, legend, selected location */}
         <div className="flex flex-col gap-4">
           <MapControls activeTypes={activeTypes} onToggle={handleToggle} />
           <MapLegend />
-          <LocationPopup
-            location={selectedLocation}
-            onClose={() => setSelectedId(null)}
-          />
+          <LocationPopup location={selectedLocation} onClose={() => setSelectedId(null)} />
         </div>
       </div>
     </div>

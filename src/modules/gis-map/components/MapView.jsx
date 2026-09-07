@@ -4,20 +4,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { typeMeta, mapCenter } from "../data/mapData";
 
-/*
- * MapView
- * -------
- * Real interactive map using react-leaflet + OpenStreetMap tiles.
- * Supports native pan/zoom, marker click-to-select, and popups with
- * location details pulled straight from mapData.js.
- *
- * Requires "leaflet" and "react-leaflet" as project dependencies.
- * If they are not yet installed, run:
- *   npm install leaflet react-leaflet
- */
-
-// Build a small colored pin icon per location type using a div icon
-// (avoids the classic Leaflet + bundler "missing marker image" issue).
 function buildIcon(type, isSelected) {
   const color = typeMeta[type]?.color || "#475569";
   const size = isSelected ? 26 : 20;
@@ -45,7 +31,6 @@ export default function MapView({ locations, activeTypes, selectedId, onSelect }
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-md border border-slate-200">
-      {/* Mock analysis layer overlays (NDVI / NDWI / Change Detection) */}
       {activeTypes.ndvi && (
         <div className="pointer-events-none absolute inset-0 z-[500] bg-green-500/10" />
       )}
@@ -72,9 +57,7 @@ export default function MapView({ locations, activeTypes, selectedId, onSelect }
             key={loc.id}
             position={[loc.lat, loc.lng]}
             icon={buildIcon(loc.type, loc.id === selectedId)}
-            eventHandlers={{
-              click: () => onSelect(loc.id),
-            }}
+            eventHandlers={{ click: () => onSelect(loc.id) }}
           >
             <Popup>
               <div className="min-w-[190px] space-y-1 text-xs">
@@ -111,7 +94,6 @@ export default function MapView({ locations, activeTypes, selectedId, onSelect }
         ))}
       </MapContainer>
 
-      {/* Mock scale / disclaimer footer */}
       <div className="pointer-events-none absolute bottom-2 right-3 z-[500] rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-slate-500">
         OpenStreetMap · Demo location data
       </div>

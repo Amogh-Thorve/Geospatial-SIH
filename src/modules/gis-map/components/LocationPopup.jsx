@@ -29,11 +29,7 @@ export default function LocationPopup({ location, onClose }) {
           <div className="text-sm font-semibold text-slate-800">{location.name}</div>
         </div>
         {onClose && (
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
-            aria-label="Close"
-          >
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="Close">
             ×
           </button>
         )}
@@ -56,9 +52,7 @@ export default function LocationPopup({ location, onClose }) {
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Confidence</span>
-          <span className="font-medium text-slate-700">
-            {Math.round(location.confidence * 100)}%
-          </span>
+          <span className="font-medium text-slate-700">{Math.round(location.confidence * 100)}%</span>
         </div>
       </div>
 

@@ -2,14 +2,22 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-set "ROOT=%~dp0"
-set "BACKEND=%ROOT%backend\jal_saheli"
+set "ROOT=%CD%"
+set "BACKEND=%ROOT%\backend\jal_saheli"
 set "VENV=%BACKEND%\.venv"
+set "VENV_PY=%VENV%\Scripts\python.exe"
 
 echo ========================================
 echo   GeoWise - Starting Backend + Frontend
 echo ========================================
 echo.
+
+if not exist "%BACKEND%\app\main.py" (
+    echo ERROR: Backend not found at:
+    echo   %BACKEND%
+    echo Make sure you run run.bat from the GeoWise repository root.
+    exit /b 1
+)
 
 REM --- Backend setup ---
 where python >nul 2>&1
@@ -19,12 +27,12 @@ if errorlevel 1 (
         echo ERROR: Python not found. Install Python 3.11+ and try again.
         exit /b 1
     )
-    set "PYTHON=py"
+    set "PYTHON=py -3"
 ) else (
     set "PYTHON=python"
 )
 
-if not exist "%VENV%\Scripts\activate.bat" (
+if not exist "%VENV_PY%" (
     echo Creating Python virtual environment...
     %PYTHON% -m venv "%VENV%"
     if errorlevel 1 (
@@ -33,9 +41,8 @@ if not exist "%VENV%\Scripts\activate.bat" (
     )
 )
 
-call "%VENV%\Scripts\activate.bat"
 echo Installing backend dependencies...
-pip install -q -r "%BACKEND%\requirements-dev.txt"
+"%VENV_PY%" -m pip install -q -r "%BACKEND%\requirements-dev.txt"
 if errorlevel 1 (
     echo ERROR: Failed to install backend dependencies.
     exit /b 1
@@ -47,10 +54,10 @@ if not exist "%BACKEND%\.env" (
 )
 
 echo Starting backend on http://localhost:8000 ...
-start "GeoWise Backend" cmd /k ""cd /d "%BACKEND%" && call "%VENV%\Scripts\activate.bat" && set DATABASE_URL=sqlite+aiosqlite:///./geowise_dev.db && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000""
+start "GeoWise Backend" /D "%BACKEND%" cmd /k start_dev.bat
 
 REM --- Frontend setup ---
-if not exist "%ROOT%node_modules" (
+if not exist "%ROOT%\node_modules" (
     echo Installing frontend dependencies...
     call npm install
     if errorlevel 1 (
@@ -60,7 +67,7 @@ if not exist "%ROOT%node_modules" (
 )
 
 echo Starting frontend on http://localhost:5173 ...
-start "GeoWise Frontend" cmd /k ""cd /d "%ROOT%" && npm run dev""
+start "GeoWise Frontend" /D "%ROOT%" cmd /k npm run dev
 
 echo.
 echo Backend:  http://localhost:8000/api/health

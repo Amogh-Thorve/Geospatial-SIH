@@ -127,6 +127,8 @@ class AnalysisOut(BaseModel):
     satellite_imagery_provider: str | None = None
     satellite_imagery_type: str | None = None
     bhuvan: dict[str, object] | None = None
+    bhuvan_lulc: dict[str, object] | None = None
+    lulc_source: str | None = None
     photo_url: str | None = None
     location: str | None = None
     coordinates: str | None = None

@@ -79,6 +79,8 @@ def analysis_out(row: AnalysisResult, submission: Submission, rec: Recommendatio
         satellite_imagery_provider=raw.get("satellite_imagery_provider"),
         satellite_imagery_type=raw.get("satellite_imagery_type"),
         bhuvan=raw.get("bhuvan"),
+        bhuvan_lulc=raw.get("bhuvan_lulc"),
+        lulc_source=raw.get("lulc_source"),
         photo_url=submission.photo_url,
         location=submission.location_label,
         coordinates=coords(submission.lat, submission.lng),

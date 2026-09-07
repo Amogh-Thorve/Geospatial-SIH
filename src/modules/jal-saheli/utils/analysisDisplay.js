@@ -30,6 +30,18 @@ export function formatSatelliteSourceLabel(analysis) {
   return null;
 }
 
+export function formatLulcSourceLabel(analysis) {
+  const src = analysis?.lulcSource || analysis?.lulc_source;
+  if (src === 'bhuvan_lulc_250k') {
+    const year = analysis?.bhuvanLulc?.year || analysis?.bhuvan_lulc?.year;
+    return year ? `Bhuvan LULC 250K (${year})` : 'Bhuvan LULC';
+  }
+  if (src === 'local_satellite_grid' || src === 'satellite_lookup') {
+    return 'Local satellite grid';
+  }
+  return src || 'Unavailable';
+}
+
 export function formatBhuvanStatusLabel(analysis) {
   const bhuvan = analysis?.bhuvan;
   if (!bhuvan) {

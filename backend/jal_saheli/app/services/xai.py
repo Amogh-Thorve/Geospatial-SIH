@@ -34,7 +34,13 @@ def build_xai(analysis: dict[str, Any], terrain: dict[str, Any] | None = None) -
         )
         if bhuvan.get("source"):
             explanation.insert(2, f"Bhuvan layer: {bhuvan['source']}.")
-    elif imagery_provider == "local_satellite_grid" and analysis.get("bhuvan"):
+    bhuvan_lulc = analysis.get("bhuvan_lulc") or {}
+    if analysis.get("lulc_source") == "bhuvan_lulc_250k" and bhuvan_lulc.get("status") == "AVAILABLE":
+        explanation.insert(
+            1,
+            f"Bhuvan LULC 250K class: {bhuvan_lulc.get('lulc')} ({bhuvan_lulc.get('year')}).",
+        )
+    elif imagery_provider == "local_satellite_grid" and (analysis.get("bhuvan") or analysis.get("bhuvan_lulc")):
         explanation.insert(
             1,
             "Bhuvan unavailable; local satellite grid used for indices.",
@@ -59,4 +65,6 @@ def build_xai(analysis: dict[str, Any], terrain: dict[str, Any] | None = None) -
         "satellite_imagery_provider": analysis.get("satellite_imagery_provider"),
         "satellite_imagery_type": analysis.get("satellite_imagery_type"),
         "bhuvan": analysis.get("bhuvan"),
+        "bhuvan_lulc": analysis.get("bhuvan_lulc"),
+        "lulc_source": analysis.get("lulc_source"),
     }

@@ -176,11 +176,23 @@ class BhuvanSettings(BaseSettings):
     bbox_delta_deg: float = Field(default=0.05, validation_alias="BHUVAN_BBOX_DELTA")
     map_width: int = Field(default=256, validation_alias="BHUVAN_MAP_WIDTH")
     map_height: int = Field(default=256, validation_alias="BHUVAN_MAP_HEIGHT")
+    access_token: str = Field(default="", validation_alias="BHUVAN_ACCESS_TOKEN")
+    lulc_enabled: bool = Field(default=False, validation_alias="BHUVAN_LULC_ENABLED")
+    lulc_year: str = Field(default="2015_16", validation_alias="BHUVAN_LULC_YEAR")
+    lulc_api_base: str = Field(
+        default="https://bhuvan-app1.nrsc.gov.in/api",
+        validation_alias="BHUVAN_LULC_API_BASE",
+    )
+    lulc_aoi_delta_deg: float = Field(default=0.01, validation_alias="BHUVAN_LULC_AOI_DELTA")
 
     @property
     def configured(self) -> bool:
         """Enabled Bhuvan uses official defaults when URL/layer env vars are empty."""
         return bool(self.enabled)
+
+    @property
+    def lulc_configured(self) -> bool:
+        return bool(self.lulc_enabled and self.access_token.strip())
 
 
 # ─────────────────────────────────────────────────────────────────────────────

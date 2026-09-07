@@ -200,8 +200,18 @@ export default function SubmissionAnalysis() {
               </strong>
             </div>
             <div className="bg-white border border-slate-200 rounded-sm p-3">
-              <span className="text-slate-500 block">Imagery provider</span>
-              <strong>{analysis?.satellite_imagery_provider || 'Not analyzed yet'}</strong>
+              <span className="text-slate-500 block">LULC source</span>
+              <strong>{analysis?.lulc_source || 'Local satellite grid when analyzed'}</strong>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-sm p-3">
+              <span className="text-slate-500 block">Bhuvan LULC API</span>
+              <strong>
+                {geoHealth?.bhuvan_lulc?.configured
+                  ? 'Configured (token required)'
+                  : geoHealth?.bhuvan_lulc?.enabled
+                  ? 'Enabled — token missing'
+                  : 'Disabled'}
+              </strong>
             </div>
             <div className="bg-white border border-slate-200 rounded-sm p-3">
               <span className="text-slate-500 block">Index source</span>

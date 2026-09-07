@@ -402,7 +402,7 @@ export default function TelegramSubmission({
   const hasLocation = !!flowState.location;
 
   const submittedId = flowState.submissionId;
-  const reward = 0;
+  const reward = flowState.reward > 0 ? flowState.reward : null;
   const typeLabel = flowState.observationType?.label ?? 'Water Body';
   const locLabel = flowState.location?.label || 'Field Coordinates';
 
@@ -565,13 +565,13 @@ export default function TelegramSubmission({
             <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-lg p-3">
               <ProcessingRow
                 icon={Brain}
-                label="GeoBrain-v3 AI Classification"
+                label="Geo AI analysis"
                 status={pipeline.ai}
                 color="text-violet-500"
               />
               <ProcessingRow
                 icon={Satellite}
-                label="Sentinel-2 Satellite Audit"
+                label="Local satellite grid lookup"
                 status={pipeline.satellite}
                 color="text-sky-500"
               />
@@ -614,19 +614,20 @@ export default function TelegramSubmission({
               </div>
             </Bubble>
 
-            {/* Reward bubble */}
+            {reward != null && (
             <Bubble side="bot">
               <div className="flex items-center gap-3 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center shrink-0">
                   <IndianRupee className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Incentive Credited</p>
+                  <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Incentive credited</p>
                   <p className="text-lg font-bold text-emerald-800">₹{reward}</p>
-                  <p className="text-[10px] text-slate-400">Direct Cadre Disbursement via Jan Dhan / UPI</p>
+                  <p className="text-[10px] text-slate-400">Recorded by backend payout ledger</p>
                 </div>
               </div>
             </Bubble>
+            )}
 
             {/* Multilingual switchable verdict */}
             <Bubble side="bot">
@@ -665,14 +666,18 @@ export default function TelegramSubmission({
                     {LOCALIZED_CONTENT[botLang].detection}
                   </p>
                   <p className="text-[11px] text-violet-700 font-medium">
-                    {LOCALIZED_CONTENT[botLang].aiLabel(flowState.verificationResult?.aiConfidence ?? 'n/a')}
+                    {LOCALIZED_CONTENT[botLang].aiLabel(flowState.verificationResult?.aiConfidence ?? null)}
                   </p>
                   <p className="text-[11px] text-sky-700 font-medium">
-                    {LOCALIZED_CONTENT[botLang].satelliteLabel(flowState.verificationResult?.satelliteMatch || 'n/a')}
+                    {LOCALIZED_CONTENT[botLang].satelliteLabel(
+                      flowState.verificationResult?.satelliteConfidence ?? null
+                    )}
                   </p>
-                  <p className="text-xs font-bold text-emerald-700 pt-1">
-                    {LOCALIZED_CONTENT[botLang].rewardText(reward)}
-                  </p>
+                  {LOCALIZED_CONTENT[botLang].rewardText(reward) ? (
+                    <p className="text-xs font-bold text-emerald-700 pt-1">
+                      {LOCALIZED_CONTENT[botLang].rewardText(reward)}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </Bubble>

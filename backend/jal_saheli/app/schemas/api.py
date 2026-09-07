@@ -7,6 +7,21 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class BhuvanStatusBlock(BaseModel):
+    enabled: bool = False
+    configured: bool = False
+    reachable: bool = False
+    status: str = "UNAVAILABLE"
+    service_url: str | None = None
+    layer: str | None = None
+    crs: str | None = None
+    version: str | None = None
+    format: str | None = None
+    provider_type: str = "WMS"
+    reason: str | None = None
+    metadata: dict[str, object] | None = None
+
+
 class HealthComponent(BaseModel):
     status: str
     required: bool = False
@@ -109,6 +124,11 @@ class AnalysisOut(BaseModel):
     anomaly: bool
     xai: XaiBlock
     recommendation: str | None = None
+    satellite_imagery_provider: str | None = None
+    satellite_imagery_type: str | None = None
+    bhuvan: dict[str, object] | None = None
+    bhuvan_lulc: dict[str, object] | None = None
+    lulc_source: str | None = None
     photo_url: str | None = None
     location: str | None = None
     coordinates: str | None = None

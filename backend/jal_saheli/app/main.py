@@ -141,7 +141,7 @@ def create_app() -> FastAPI:
         version=settings.app.version,
         description=(
             "GeoWise unified API: Jal Saheli, GIS, verification, and Ved Geo AI "
-            "on a single FastAPI process. Bhuvan is not implemented."
+            "on a single FastAPI process. Optional Bhuvan WMS via BHUVAN_ENABLED."
         ),
         docs_url="/docs" if settings.app.debug else None,
         redoc_url="/redoc" if settings.app.debug else None,

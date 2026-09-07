@@ -35,7 +35,7 @@ const activityIconMap = {
 const WORKFLOW_STEPS = [
   { label: 'Submission', detail: 'Jal Saheli geo-tagged field photo (local/demo adapter)' },
   { label: 'AI Analysis', detail: 'Ved Random Forest + local satellite_lookup.npz' },
-  { label: 'Satellite comparison', detail: 'Offline NPZ scene lookup — Bhuvan not implemented' },
+  { label: 'Satellite comparison', detail: 'Local NPZ grid; optional Bhuvan WMS when BHUVAN_ENABLED' },
   { label: 'Verification', detail: 'Autonomous triage → officer queue' },
   { label: 'Intervention', detail: 'Rule-based demo recommendation + feedback store' },
 ];

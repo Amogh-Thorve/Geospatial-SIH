@@ -1,85 +1,126 @@
 /**
  * localLanguageContent.js
- * Multi-language verification outcome texts and audio narration generators
- * for English, Marathi (मराठी), and Hindi (हिंदी).
- *
- * Exact text specifications:
- *
- * English:
- *   Observation Verified
- *   Water body detected.
- *   AI Confidence: 92%
- *   Satellite Confidence: 96%
- *   You earned ₹25.
- *
- * Marathi:
- *   ✓ निरीक्षण सत्यापित झाले
- *   पाण्याचे क्षेत्र आढळले आहे.
- *   AI विश्वास: 92%
- *   उपग्रह पडताळणी: 96%
- *   तुमच्या निरीक्षणासाठी ₹25 कमाई मिळाली आहे.
- *
- * Hindi:
- *   ✓ अवलोकन सत्यापित हुआ
- *   जल क्षेत्र की पुष्टि हुई है।
- *   AI विश्वास: 92%
- *   उपग्रह सत्यापन: 96%
- *   आपने ₹25 कमाए हैं।
+ * Multi-language verification outcome texts (no fabricated default scores).
  */
+
+function confidenceText(score, enLabel, mrLabel, hiLabel, lang) {
+  if (score == null || Number.isNaN(score)) {
+    if (lang === 'mr') return `${mrLabel}: उपलब्ध नाही`;
+    if (lang === 'hi') return `${hiLabel}: उपलब्ध नहीं`;
+    return `${enLabel}: unavailable`;
+  }
+  if (lang === 'mr') return `${mrLabel}: ${score}%`;
+  if (lang === 'hi') return `${hiLabel}: ${score}%`;
+  return `${enLabel}: ${score}%`;
+}
 
 export const LOCALIZED_CONTENT = {
   en: {
     langId: 'en',
     langLabel: 'English',
     nativeLabel: 'English',
-    title: 'Observation Verified',
+    title: 'Observation analyzed',
     hasCheckInTitle: false,
-    detection: 'Water body detected.',
-    aiLabel: (score = 92) => `AI Confidence: ${score}%`,
-    satelliteLabel: (score = 96) => `Satellite Confidence: ${score}%`,
-    rewardText: (amt = 25) => `You earned ₹${amt}.`,
-    voiceText: (scoreAi = 92, scoreSat = 96, amt = 25) =>
-      `Observation Verified. Water body detected. AI Confidence: ${scoreAi} percent. Satellite Confidence: ${scoreSat} percent. You earned ${amt} rupees.`,
-    listenPrompt: 'Listen Narration',
+    detection: 'Backend analysis complete.',
+    aiLabel: (score) => confidenceText(score, 'AI confidence', 'AI विश्वास', 'AI विश्वास', 'en'),
+    satelliteLabel: (score) =>
+      confidenceText(score, 'Satellite confidence', 'उपग्रह पडताळणी', 'उपग्रह सत्यापन', 'en'),
+    rewardText: (amt) =>
+      amt != null && amt > 0 ? `You earned ₹${amt}.` : null,
+    voiceText: (scoreAi, scoreSat, amt) => {
+      const ai =
+        scoreAi == null ? 'AI confidence unavailable' : `AI confidence ${scoreAi} percent`;
+      const sat =
+        scoreSat == null
+          ? 'Satellite confidence unavailable'
+          : `Satellite confidence ${scoreSat} percent`;
+      const pay =
+        amt != null && amt > 0 ? `You earned ${amt} rupees.` : 'No DBT reward recorded.';
+      return `Observation analyzed. ${ai}. ${sat}. ${pay}`;
+    },
+    listenPrompt: 'Listen narration',
     speakingText: 'Playing audio…',
-    dbtBadge: 'DBT Credited to Jan Dhan',
-    verifiedStamp: 'Verified Decision',
-    subText: 'Dual-engine consensus reached via GeoBrain-v3 and Sentinel-2 satellite audit.',
+    dbtBadge: 'DBT only when backend records a reward',
+    verifiedStamp: 'Analysis stored',
+    subText: 'Results from unified backend Geo AI and local satellite grid lookup.',
+    providerLabel: (provider) => provider || 'Unified backend',
+    sourceLabel: 'Local satellite grid',
+    ndviNdwiLine: (ndvi, ndwi) => {
+      const n = ndvi == null ? 'unavailable' : ndvi;
+      const w = ndwi == null ? 'unavailable' : ndwi;
+      return `NDVI ${n}, NDWI ${w} (grid lookup).`;
+    },
   },
   mr: {
     langId: 'mr',
     langLabel: 'Marathi',
     nativeLabel: 'मराठी',
-    title: '✓ निरीक्षण सत्यापित झाले',
+    title: '✓ निरीक्षण विश्लेषण पूर्ण',
     hasCheckInTitle: true,
-    detection: 'पाण्याचे क्षेत्र आढळले आहे.',
-    aiLabel: (score = 92) => `AI विश्वास: ${score}%`,
-    satelliteLabel: (score = 96) => `उपग्रह पडताळणी: ${score}%`,
-    rewardText: (amt = 25) => `तुमच्या निरीक्षणासाठी ₹${amt} कमाई मिळाली आहे.`,
-    voiceText: (scoreAi = 92, scoreSat = 96, amt = 25) =>
-      `निरीक्षण सत्यापित झाले. पाण्याचे क्षेत्र आढळले आहे. AI विश्वास: ${scoreAi} टक्के. उपग्रह पडताळणी: ${scoreSat} टक्के. तुमच्या निरीक्षणासाठी ${amt} रुपये कमाई मिळाली आहे.`,
-    listenPrompt: 'आवाज ऐका (Listen Audio)',
-    speakingText: 'ऑडिओ चालू आहे… (Speaking…)',
-    dbtBadge: 'जन धन खात्यात थेट जमा',
-    verifiedStamp: 'सत्यापित निकाल',
-    subText: 'जियोब्रेन-v3 एआय आणि सेंटिनेल-२ उपग्रह द्वारे दुहेरी पडताळणी पूर्ण.',
+    detection: 'बॅकएंड विश्लेषण पूर्ण झाले.',
+    aiLabel: (score) => confidenceText(score, 'AI confidence', 'AI विश्वास', 'AI विश्वास', 'mr'),
+    satelliteLabel: (score) =>
+      confidenceText(score, 'Satellite confidence', 'उपग्रह पडताळणी', 'उपग्रह सत्यापन', 'mr'),
+    rewardText: (amt) =>
+      amt != null && amt > 0 ? `तुमच्या निरीक्षणासाठी ₹${amt} कमाई मिळाली आहे.` : null,
+    voiceText: (scoreAi, scoreSat, amt) => {
+      const ai =
+        scoreAi == null ? 'AI विश्वास उपलब्ध नाही' : `AI विश्वास ${scoreAi} टक्के`;
+      const sat =
+        scoreSat == null ? 'उपग्रह पडताळणी उपलब्ध नाही' : `उपग्रह पडताळणी ${scoreSat} टक्के`;
+      const pay =
+        amt != null && amt > 0
+          ? `तुमच्या निरीक्षणासाठी ${amt} रुपये कमाई मिळाली आहे.`
+          : 'बॅकएंडकडून कोणतेही DBT बक्षीस नोंदवले नाही.';
+      return `निरीक्षण विश्लेषण पूर्ण. ${ai}. ${sat}. ${pay}`;
+    },
+    listenPrompt: 'आवाज ऐका',
+    speakingText: 'ऑडिओ चालू आहे…',
+    dbtBadge: 'बॅकएंड बक्षीस नोंदवल्यावरच DBT',
+    verifiedStamp: 'विश्लेषण जतन',
+    subText: 'एकीकृत बॅकएंड Geo AI आणि स्थानिक उपग्रह ग्रिड पडताळणी.',
+    providerLabel: (provider) => provider || 'एकीकृत बॅकएंड',
+    sourceLabel: 'स्थानिक उपग्रह ग्रिड',
+    ndviNdwiLine: (ndvi, ndwi) => {
+      const n = ndvi == null ? 'उपलब्ध नाही' : ndvi;
+      const w = ndwi == null ? 'उपलब्ध नाही' : ndwi;
+      return `NDVI ${n}, NDWI ${w} (ग्रिड लुकअप).`;
+    },
   },
   hi: {
     langId: 'hi',
     langLabel: 'Hindi',
     nativeLabel: 'हिंदी',
-    title: '✓ अवलोकन सत्यापित हुआ',
+    title: '✓ अवलोकन विश्लेषण पूर्ण',
     hasCheckInTitle: true,
-    detection: 'जल क्षेत्र की पुष्टि हुई है।',
-    aiLabel: (score = 92) => `AI विश्वास: ${score}%`,
-    satelliteLabel: (score = 96) => `उपग्रह सत्यापन: ${score}%`,
-    rewardText: (amt = 25) => `आपने ₹${amt} कमाए हैं।`,
-    voiceText: (scoreAi = 92, scoreSat = 96, amt = 25) =>
-      `अवलोकन सत्यापित हुआ. जल क्षेत्र की पुष्टि हुई है. AI विश्वास: ${scoreAi} प्रतिशत. उपग्रह सत्यापन: ${scoreSat} प्रतिशत. आपने ${amt} रुपये कमाए हैं.`,
-    listenPrompt: 'आवाज़ सुनें (Listen Audio)',
-    speakingText: 'ऑडियो चल रहा है… (Speaking…)',
-    dbtBadge: 'जन धन खाते में सीधे हस्तांतरित',
-    verifiedStamp: 'सत्यापित निर्णय',
-    subText: 'जियोब्रेन-v3 एआई और सेंटिनल-2 उपग्रह द्वारा दोहरा सत्यापन सफल।',
+    detection: 'बैकएंड विश्लेषण पूर्ण।',
+    aiLabel: (score) => confidenceText(score, 'AI confidence', 'AI विश्वास', 'AI विश्वास', 'hi'),
+    satelliteLabel: (score) =>
+      confidenceText(score, 'Satellite confidence', 'उपग्रह पडताळणी', 'उपग्रह सत्यापन', 'hi'),
+    rewardText: (amt) =>
+      amt != null && amt > 0 ? `आपने ₹${amt} कमाए हैं।` : null,
+    voiceText: (scoreAi, scoreSat, amt) => {
+      const ai =
+        scoreAi == null ? 'AI विश्वास उपलब्ध नहीं' : `AI विश्वास ${scoreAi} प्रतिशत`;
+      const sat =
+        scoreSat == null ? 'उपग्रह सत्यापन उपलब्ध नहीं' : `उपग्रह सत्यापन ${scoreSat} प्रतिशत`;
+      const pay =
+        amt != null && amt > 0
+          ? `आपने ${amt} रुपये कमाए हैं।`
+          : 'बैकएंड से कोई DBT इनाम दर्ज नहीं।';
+      return `अवलोकन विश्लेषण पूर्ण. ${ai}. ${sat}. ${pay}`;
+    },
+    listenPrompt: 'आवाज़ सुनें',
+    speakingText: 'ऑडियो चल रहा है…',
+    dbtBadge: 'DBT केवल जब बैकएंड इनाम दर्ज करे',
+    verifiedStamp: 'विश्लेषण संग्रहीत',
+    subText: 'एकीकृत बैकएंड Geo AI और स्थानीय उपग्रह ग्रिड लुकअप।',
+    providerLabel: (provider) => provider || 'एकीकृत बैकएंड',
+    sourceLabel: 'स्थानीय उपग्रह ग्रिड',
+    ndviNdwiLine: (ndvi, ndwi) => {
+      const n = ndvi == null ? 'उपलब्ध नहीं' : ndvi;
+      const w = ndwi == null ? 'उपलब्ध नहीं' : ndwi;
+      return `NDVI ${n}, NDWI ${w} (ग्रिड लुकअप).`;
+    },
   },
 };

@@ -118,6 +118,9 @@ def load_geoai_assets() -> None:
 
 
 def geoai_status() -> dict[str, Any]:
+    from app.geoai.providers.bhuvan import bhuvan_health_status
+    from app.geoai.providers.bhuvan_lulc import bhuvan_lulc_health_status
+
     return {
         "status": "ok" if rf_model is not None and sat_data is not None else "unavailable",
         "model_loaded": rf_model is not None,
@@ -127,7 +130,8 @@ def geoai_status() -> dict[str, Any]:
         "crs": crs_name,
         "pixel_size_m": pixel_size_m,
         "detail": load_error,
-        "bhuvan": "not_implemented",
+        "bhuvan": bhuvan_health_status(),
+        "bhuvan_lulc": bhuvan_lulc_health_status(),
     }
 
 

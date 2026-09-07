@@ -125,7 +125,7 @@ async def dashboard_summary(db: AsyncSession = Depends(get_db_session)) -> Dashb
         system_status=[
             {"id": "api", "label": "GeoWise API", "status": "operational", "note": "Local FastAPI"},
             {"id": "geoai", "label": "Geo AI provider", "status": "operational", "note": "Ved Random Forest + satellite_lookup.npz"},
-            {"id": "satellite", "label": "Satellite adapter", "status": "local-lookup", "note": "Offline NPZ scene — Bhuvan not implemented"},
+            {"id": "satellite", "label": "Satellite adapter", "status": "local-lookup", "note": "Local NPZ grid; optional Bhuvan WMS via BHUVAN_ENABLED"},
             {"id": "telegram", "label": "Telegram adapter", "status": "demo", "note": "LocalTelegramBotProvider"},
         ],
         totals={

@@ -522,17 +522,17 @@ function CaseCard({ caseItem, expanded, onToggle }) {
                 )}
               </div>
 
-              {/* Geo link — links to existing /map route (no shared file modification) */}
+              {/* Cross-module links use the authoritative application routes. */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <a
-                  href="/map"
+                  href="/gis-map"
                   className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-sky-600 hover:text-sky-700 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded transition-colors"
                   title="Open GIS Map — case auto-centering requires backend integration"
                 >
                   <MapPin className="w-3 h-3" /> View on GIS Map
                 </a>
                 <a
-                  href="/submissions"
+                  href="/submission-analysis"
                   className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 px-3 py-1.5 rounded transition-colors"
                 >
                   <ArrowRight className="w-3 h-3" /> View Submission

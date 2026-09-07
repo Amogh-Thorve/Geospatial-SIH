@@ -4,12 +4,12 @@ import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 
 import CommandCenter from './pages/CommandCenter';
-import GisMap from './pages/GisMap';
 import SubmissionAnalysis from './pages/SubmissionAnalysis';
 import VerificationQueue from './pages/VerificationQueue';
 import Analytics from './pages/Analytics';
-import JalSaheli from './pages/JalSaheli';
 import Settings from './pages/Settings';
+import { GISMapPage } from './modules/gis-map';
+import { JalSaheliDashboard } from './modules/jal-saheli';
 
 
 export default function App() {
@@ -43,8 +43,8 @@ export default function App() {
             <Routes>
               <Route path="/" element={<CommandCenter />} />
               <Route path="/analytics" element={<Analytics />} />
-              <Route path="/gis-map" element={<GisMap />} />
-              <Route path="/jal-saheli" element={<JalSaheli />} />
+              <Route path="/gis-map" element={<GISMapPage />} />
+              <Route path="/jal-saheli" element={<JalSaheliDashboard />} />
               <Route path="/submission-analysis" element={<SubmissionAnalysis />} />
               <Route path="/verification" element={<VerificationQueue />} />
               <Route path="/settings" element={<Settings />} />

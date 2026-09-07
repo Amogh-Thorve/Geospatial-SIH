@@ -56,10 +56,12 @@ export default function CommandCenter() {
         actions={
           <button
             type="button"
+            disabled
+            title="Satellite sync is not connected in this demo."
             className="flex items-center space-x-2 px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-medium hover:bg-slate-800 transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Sync Satellite Feed</span>
+            <span>Satellite Sync (Demo)</span>
           </button>
         }
       />

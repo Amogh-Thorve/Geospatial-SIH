@@ -1,9 +1,10 @@
-"""Geo AI provider boundary. Replace MockGeoAIProvider without changing the API."""
+"""Geo AI provider boundary. Production path is Ved's RF + satellite lookup."""
 
 from __future__ import annotations
 
 from typing import Any, Protocol
 
+from app.geoai.engine import SatelliteUnavailableError, lookup_location
 from app.geospatial.adapters import (
     HistoricalRecordsAdapter,
     LocalDrishtiAdapter,
@@ -19,90 +20,60 @@ class GeoAIProvider(Protocol):
         ...
 
 
-class MockGeoAIProvider:
-    """Deterministic demo classifier. This is not a trained ML model."""
+class VedGeoAIProvider:
+    """Uses Ved's satellite_lookup.npz LULC/NDVI/NDWI. No mock indices."""
 
-    name = "MockGeoAIProvider"
+    name = "VedGeoAI-RF-Lookup"
 
     def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
-        classification = payload.get("classification") or payload.get("title") or "Farm Pond"
-        title = (payload.get("title") or "").lower()
-        notes = (payload.get("notes") or "").lower()
-        blob = f"{title} {notes} {classification.lower()}"
-
-        if "check dam" in blob:
-            classification = "Check Dam"
-            confidence = 0.61
-            lulc = "Built-up / water harvesting structure"
-            ndvi, ndwi = 0.28, 0.12
-            match = "MISMATCH"
-            change = "Limited post-construction water signature versus claimed completion."
-            anomaly = True
-        elif "farm pond" in blob:
-            classification = "Farm Pond"
-            confidence = 0.87
-            lulc = "Agriculture / excavated pond"
-            ndvi, ndwi = 0.41, 0.33
-            match = "MATCH"
-            change = "Seasonal surface-water extent increased in demo series."
-            anomaly = False
-        elif "trench" in blob:
-            classification = "Contour Trench"
-            confidence = 0.42
-            lulc = "Degraded / treated slope"
-            ndvi, ndwi = 0.18, 0.05
-            match = "UNCERTAIN"
-            change = "Weak soil-disturbance signature in demo change layer."
-            anomaly = True
-        elif "percolation" in blob:
-            classification = "Percolation Tank"
-            confidence = 0.84
-            lulc = "Waterbody / recharge structure"
-            ndvi, ndwi = 0.36, 0.38
-            match = "MATCH"
-            change = "Demo NDWI peak consistent with a recharge tank."
-            anomaly = False
-        else:
-            classification = classification or "Water Harvesting Structure"
-            confidence = 0.73
-            lulc = "Mixed rural land cover"
-            ndvi, ndwi = 0.31, 0.22
-            match = "PARTIAL"
-            change = "Moderate land-cover change in demo temporal stack."
-            anomaly = confidence < 0.75
-
         fused = fuse_record(
             LocalDrishtiAdapter().fetch(payload["lat"], payload["lng"]),
             LocalSrishtiAdapter().fetch(payload["lat"], payload["lng"]),
             HistoricalRecordsAdapter().fetch(payload["lat"], payload["lng"]),
         )
+        try:
+            lookup = lookup_location(float(payload["lat"]), float(payload["lng"]))
+        except SatelliteUnavailableError as exc:
+            return {
+                "provider": self.name,
+                "available": False,
+                "code": exc.code,
+                "classification": "",
+                "confidence": None,
+                "satellite_match": "UNAVAILABLE",
+                "ndvi": None,
+                "ndwi": None,
+                "ndvi_source": "unavailable",
+                "ndwi_source": "unavailable",
+                "lulc": "",
+                "change_detection": exc.message,
+                "anomaly": True,
+                "fused_record": fused,
+                "status": "UNAVAILABLE",
+                "extra": exc.extra,
+            }
 
         return {
             "provider": self.name,
-            "classification": classification,
-            "confidence": confidence,
-            "satellite_match": match,
-            "ndvi": ndvi,
-            "ndwi": ndwi,
-            "ndvi_source": "simulated",
-            "ndwi_source": "simulated",
-            "lulc": lulc,
-            "change_detection": change,
-            "anomaly": anomaly,
+            "available": True,
+            "classification": lookup["prediction"],
+            "confidence": lookup["confidence"],
+            "satellite_match": lookup["satellite_match"],
+            "ndvi": lookup["ndvi_val"],
+            "ndwi": lookup["ndwi_val"],
+            "ndvi_source": "satellite_lookup",
+            "ndwi_source": "satellite_lookup",
+            "lulc": lookup["prediction"],
+            "change_detection": lookup["change_detection"],
+            "anomaly": lookup["satellite_match"] == "DISCREPANCY",
             "fused_record": fused,
+            "status": "COMPLETED",
+            "row": lookup["row"],
+            "col": lookup["col"],
+            "source": lookup["source"],
+            "pixel_size_m": lookup["pixel_size_m"],
         }
 
 
-class RealGeoAIProvider:
-    """Reserved for a future trained pipeline (Ved / production Geo AI)."""
-
-    name = "RealGeoAIProvider"
-
-    def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
-        raise NotImplementedError(
-            "RealGeoAIProvider is a boundary only. Configure MockGeoAIProvider for the MVP."
-        )
-
-
 def get_geo_ai_provider() -> GeoAIProvider:
-    return MockGeoAIProvider()
+    return VedGeoAIProvider()

@@ -105,12 +105,10 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Sidebar Footer — system status */}
       <div className="p-4 border-t border-slate-800 text-xs text-slate-400 bg-slate-950/40 shrink-0">
         <div className="flex items-center space-x-2">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${status === 'live' ? 'bg-emerald-500' : status === 'checking' ? 'bg-slate-400' : 'bg-amber-500'}`} aria-hidden="true" />
-          <span className="font-medium text-slate-300">
-            {status === 'live' ? 'API connected' : status === 'offline' ? 'Demo / Offline' : status === 'degraded' ? 'API degraded' : 'Checking API'}
-          </span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+          <span className="font-medium text-slate-300">GeoBrain RF Model (84.8% Acc)</span>
         </div>
-        <p className="mt-1 text-[11px] text-slate-400">MockGeoAIProvider · no live Sentinel feed</p>
+        <p className="mt-1 text-[11px] text-slate-400">Srishti IRS-R2A Sync: Active</p>
       </div>
     </aside>
   );

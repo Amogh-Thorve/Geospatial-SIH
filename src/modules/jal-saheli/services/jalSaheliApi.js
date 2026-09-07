@@ -104,7 +104,7 @@ export async function submitObservation({ observationType, location, photoFile, 
     notes: notes || '',
     hasPhoto: !!photoFile,
     status: created.status,
-    provider: 'GeoWise API (demo analysis)',
+    provider: 'GeoWise API',
   };
 }
 

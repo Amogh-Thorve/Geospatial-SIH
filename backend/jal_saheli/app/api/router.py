@@ -15,6 +15,7 @@ Add new routers here as phases are implemented.
 from fastapi import APIRouter
 
 from app.api import geowise, health
+from app.geoai.router import router as geoai_router
 
 # ── Root router (no prefix — health is at /health not /api/health) ──────────
 root_router = APIRouter()
@@ -23,6 +24,7 @@ root_router.include_router(health.router)
 api_router = APIRouter(prefix="/api")
 api_router.include_router(health.router)
 api_router.include_router(geowise.router)
+api_router.include_router(geoai_router)
 root_router.include_router(api_router)
 
 # ── Jal Saheli API router (prefix: /api/jal-saheli) ─────────────────────────

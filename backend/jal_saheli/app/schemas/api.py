@@ -55,8 +55,8 @@ class SubmissionCreate(BaseModel):
     title: str
     location_label: str
     district: str = ""
-    lat: float
-    lng: float
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
     classification: str | None = None
     photo_url: str | None = None
     submitter_name: str = "Jal Saheli"
@@ -87,10 +87,10 @@ class FeatureImportance(BaseModel):
 
 
 class XaiBlock(BaseModel):
-    confidence: float
+    confidence: float | None = None
     important_features: list[FeatureImportance]
     explanation: list[str]
-    method: str = "rule-based-demo"
+    method: str = "satellite-lookup"
 
 
 class AnalysisOut(BaseModel):
@@ -98,12 +98,12 @@ class AnalysisOut(BaseModel):
     status: str
     provider: str
     classification: str
-    confidence: float
+    confidence: float | None = None
     satellite_match: str
     ndvi: float | None = None
     ndwi: float | None = None
-    ndvi_source: str = "simulated"
-    ndwi_source: str = "simulated"
+    ndvi_source: str = "unknown"
+    ndwi_source: str = "unknown"
     lulc: str
     change_detection: str
     anomaly: bool
@@ -122,7 +122,7 @@ class GisFeatureProperties(BaseModel):
     type: str
     location: str
     status: str
-    confidence: float
+    confidence: float | None = None
     description: str
     priority: str
     submission_id: str | None = None
@@ -140,8 +140,8 @@ class VerificationTaskOut(BaseModel):
     status: str
     priority: str
     reason: str
-    confidence: float
-    ai_confidence: int
+    confidence: float | None = None
+    ai_confidence: int | None = None
     assigned_officer: str | None = None
     lat: float
     lng: float
@@ -153,7 +153,7 @@ class VerificationTaskOut(BaseModel):
     triage_reason: str
     reasons: list[str]
     recommended_action: str
-    risk_score: int
+    risk_score: int | None = None
 
 
 class VerificationPatch(BaseModel):
@@ -166,12 +166,12 @@ class VerificationPatch(BaseModel):
 class RecommendationOut(BaseModel):
     submission_id: str
     intervention: str
-    suitability: float
+    suitability: float | None = None
     reasons: list[str]
     important_features: list[FeatureImportance]
     explanation: str
     provider: str
-    method: str = "rule-based-demo"
+    method: str = "label-mapping"
 
 
 class JalSaheliProfileOut(BaseModel):
@@ -190,8 +190,8 @@ class JalSaheliProfileOut(BaseModel):
 class JalSaheliSubmissionCreate(BaseModel):
     observation_type: str = "water_body"
     type_label: str | None = None
-    lat: float | None = None
-    lng: float | None = None
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
     location_label: str = "Field location"
     notes: str | None = None
     photo_url: str | None = None

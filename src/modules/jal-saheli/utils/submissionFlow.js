@@ -226,127 +226,120 @@ export const DEMO_DELAYS = {
  *   SATELLITE_PROCESSING → SATELLITE_COMPLETE → FINAL_VERIFICATION →
  *   VERIFIED → EARNINGS_ADDED
  */
-export function runDemoFlow(dispatch, payloadOrType = 'Water Body', rewardArg = 25, onCompleteArg = null) {
+/**
+ * Drive UI states from a persisted backend analysis (no fake NDVI/confidence).
+ * Returns a cancel() function.
+ */
+export function runLiveAnalysisFlow(dispatch, payload = {}, onCompleteArg = null) {
   const timers = [];
-
   const after = (ms, fn) => {
     const id = setTimeout(fn, ms);
     timers.push(id);
     return id;
   };
-
   const cancel = () => timers.forEach(clearTimeout);
 
-  // Normalize arguments for both payload object and legacy positional params
-  let observationType = 'Water Body';
-  let reward = 25;
-  let submissionId = null;
-  let location = null;
-  let photo = null;
-  let onComplete = null;
+  const submissionId = payload.submissionId;
+  const fetchAnalysis = payload.fetchAnalysis;
+  const observationType = payload.observationType || 'Water Body';
+  const location = payload.location;
+  const photo = payload.photo;
+  const onComplete = typeof onCompleteArg === 'function' ? onCompleteArg : payload.onComplete;
+  const typeLabel = typeof observationType === 'object' ? (observationType.label || 'Observation') : observationType;
+  const typeId = typeof observationType === 'object' ? (observationType.id || 'observation') : 'observation';
 
-  if (typeof payloadOrType === 'object' && payloadOrType !== null && !payloadOrType.label) {
-    observationType = payloadOrType.observationType || 'Water Body';
-    reward = typeof payloadOrType.reward === 'number' ? payloadOrType.reward : 25;
-    submissionId = payloadOrType.submissionId;
-    location = payloadOrType.location;
-    photo = payloadOrType.photo;
-    onComplete = typeof rewardArg === 'function' ? rewardArg : onCompleteArg;
-  } else {
-    observationType = payloadOrType;
-    reward = typeof rewardArg === 'number' ? rewardArg : 25;
-    onComplete = typeof onCompleteArg === 'function' ? onCompleteArg : null;
-  }
-
-  const sid = submissionId || generateSubmissionId();
-  const typeLabel = typeof observationType === 'object' ? (observationType.label || 'Water Body') : observationType;
-  const typeId = typeof observationType === 'object' ? (observationType.id || 'water_body') : 'water_body';
-
-  // 1. SUBMIT -> PHOTO_RECEIVED
-  after(DEMO_DELAYS.SUBMIT_TO_PHOTO_RECEIVED, () => {
+  after(200, () => {
     dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.PHOTO_RECEIVED });
-
-    // 2. PHOTO_RECEIVED -> AI_PROCESSING
-    after(DEMO_DELAYS.PHOTO_TO_AI_GAP, () => {
+    after(200, () => {
       dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.AI_PROCESSING });
-
-      // 3. AI_PROCESSING -> AI_COMPLETE
-      after(DEMO_DELAYS.AI_PROCESSING_DURATION, () => {
-        dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.AI_COMPLETE });
-
-        // 4. AI_COMPLETE -> SATELLITE_PROCESSING
-        after(DEMO_DELAYS.AI_TO_SAT_GAP, () => {
-          dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.SATELLITE_PROCESSING });
-
-          // 5. SATELLITE_PROCESSING -> SATELLITE_COMPLETE
-          after(DEMO_DELAYS.SAT_PROCESSING_DURATION, () => {
-            dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.SATELLITE_COMPLETE });
-
-            // 6. SATELLITE_COMPLETE -> FINAL_VERIFICATION
-            after(DEMO_DELAYS.SAT_TO_FINAL_GAP, () => {
-              dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.FINAL_VERIFICATION });
-
-              // 7. FINAL_VERIFICATION -> VERIFIED
-              after(DEMO_DELAYS.FINAL_VERIFICATION_DURATION, () => {
-                const verificationResult = {
-                  ...DEMO_RESULT,
-                  submissionId: sid,
-                  observationType: typeLabel,
-                  reward,
-                  rewardDisplay: `₹${reward}`,
-                  verifiedAt: new Date().toISOString(),
-                };
-
-                dispatch({
-                  type: 'SET_VERIFIED',
-                  state: SUBMISSION_STATES.VERIFIED,
-                  verificationResult,
-                  reward,
-                });
-
-                // 8. VERIFIED -> EARNINGS_ADDED
-                after(DEMO_DELAYS.VERIFIED_TO_EARNINGS, () => {
-                  const finalSubmission = {
-                    id: sid,
-                    submitterId: 'JS-CADRE',
-                    type: typeId,
-                    typeLabel,
-                    status: 'verified',
-                    aiConfidence: DEMO_RESULT.aiConfidence,
-                    satelliteConfidence: DEMO_RESULT.satelliteConfidence,
-                    finalConfidence: DEMO_RESULT.finalConfidence,
-                    reward,
-                    earnings: reward,
-                    earningsDisplay: `₹${reward}`,
-                    verifiedAt: new Date().toISOString(),
-                    dateDisplay: new Date().toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' }),
-                    timeDisplay: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-                    channel: 'web',
-                    verificationResult,
-                    location: location || { label: 'Field Location', lat: null, lng: null },
-                    photoUrl: photo?.previewUrl || null,
-                  };
-
-                  dispatch({
-                    type: 'SET_EARNINGS',
-                    state: SUBMISSION_STATES.EARNINGS_ADDED,
-                    reward,
-                    finalSubmission,
-                  });
-
-                  if (onComplete) {
-                    onComplete(finalSubmission);
-                  }
-                });
-              });
+      after(200, () => {
+        dispatch({ type: 'SET_STATE', state: SUBMISSION_STATES.SATELLITE_PROCESSING });
+        Promise.resolve()
+          .then(() => (fetchAnalysis ? fetchAnalysis() : Promise.reject(new Error('No analysis fetcher'))))
+          .then((analysis) => {
+            const unavailable = !analysis || analysis.status === 'UNAVAILABLE' || analysis.satellite_match === 'UNAVAILABLE';
+            const conf = analysis?.confidence;
+            const confPct = conf == null ? null : (conf <= 1 ? Math.round(conf * 100) : Math.round(conf));
+            const verificationResult = {
+              submissionId,
+              observationType: typeLabel,
+              available: !unavailable,
+              status: unavailable ? 'unavailable' : (analysis.submission_status || analysis.status),
+              provider: analysis?.provider,
+              classification: analysis?.classification || analysis?.lulc || '',
+              lulc: analysis?.lulc,
+              ndvi: analysis?.ndvi,
+              ndwi: analysis?.ndwi,
+              ndviSource: analysis?.ndvi_source,
+              ndwiSource: analysis?.ndwi_source,
+              satelliteMatch: analysis?.satellite_match,
+              aiConfidence: confPct,
+              satelliteConfidence: confPct,
+              finalConfidence: confPct,
+              changeDetection: analysis?.change_detection,
+              recommendation: analysis?.recommendation,
+              message: unavailable ? (analysis?.change_detection || 'Geo AI unavailable') : null,
+            };
+            dispatch({
+              type: unavailable ? 'SET_FAILED' : 'SET_VERIFIED',
+              state: unavailable ? SUBMISSION_STATES.FAILED : SUBMISSION_STATES.VERIFIED,
+              verificationResult,
+              reward: 0,
+            });
+            const finalSubmission = {
+              id: submissionId,
+              type: typeId,
+              typeLabel,
+              status: unavailable ? 'unavailable' : 'analyzed',
+              aiConfidence: confPct,
+              satelliteConfidence: confPct,
+              finalConfidence: confPct,
+              reward: 0,
+              verificationResult,
+              location: location || { label: 'Field Location', lat: null, lng: null },
+              photoUrl: photo?.previewUrl || null,
+            };
+            dispatch({
+              type: 'SET_EARNINGS',
+              state: unavailable ? SUBMISSION_STATES.FAILED : SUBMISSION_STATES.EARNINGS_ADDED,
+              reward: 0,
+              finalSubmission,
+            });
+            if (onComplete) onComplete(finalSubmission);
+          })
+          .catch((err) => {
+            dispatch({
+              type: 'SET_FAILED',
+              state: SUBMISSION_STATES.FAILED,
+              verificationResult: {
+                submissionId,
+                available: false,
+                status: 'unavailable',
+                message: err?.message || 'Geo AI unavailable',
+              },
+              reward: 0,
             });
           });
-        });
       });
     });
   });
 
   return cancel;
+}
+
+/**
+ * @deprecated Use runLiveAnalysisFlow. Kept as an alias so existing imports keep working.
+ */
+export function runDemoFlow(dispatch, payloadOrType = {}, rewardArg = 0, onCompleteArg = null) {
+  let payload = payloadOrType;
+  let onComplete = onCompleteArg;
+  if (typeof payloadOrType !== 'object' || payloadOrType == null || payloadOrType.label) {
+    payload = { observationType: payloadOrType, reward: rewardArg };
+    onComplete = onCompleteArg;
+  } else if (typeof rewardArg === 'function') {
+    onComplete = rewardArg;
+  }
+  return runLiveAnalysisFlow(dispatch, payload, onComplete);
 }
 
 // ---------------------------------------------------------------------------
@@ -408,6 +401,14 @@ export function flowReducer(state, action) {
       return {
         ...state,
         status: action.state,
+      };
+
+    case 'SET_FAILED':
+      return {
+        ...state,
+        status: action.state || SUBMISSION_STATES.FAILED,
+        verificationResult: action.verificationResult,
+        reward: action.reward ?? 0,
       };
 
     case 'SET_VERIFIED':

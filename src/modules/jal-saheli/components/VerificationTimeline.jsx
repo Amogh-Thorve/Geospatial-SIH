@@ -1,17 +1,13 @@
 /**
  * VerificationTimeline.jsx
- * Step-by-step visual audit trail showing the timeline of verification events:
- * 1. Observation Submitted
- * 2. Photo & Geotag Received
- * 3. AI Vision Analysis (GeoBrain-v3 92%)
- * 4. Sentinel-2 Satellite Audit (96%)
- * 5. Final Verification Decision (95%)
- * 6. Incentive Credited (₹25)
+ * Audit trail built from persisted backend analysis (no fabricated metrics).
  *
  * Props:
  *   status        - string from SUBMISSION_STATES
  *   submissionId  - string (optional)
- *   reward        - number (default 25)
+ *   reward        - number | null (only shown when backend provides a reward)
+ *   location      - location object (optional)
+ *   analysis      - verification result / analysis object from API (optional)
  */
 
 import React from 'react';
@@ -26,15 +22,28 @@ import {
   Clock,
 } from 'lucide-react';
 import { SUBMISSION_STATES } from '../utils/submissionFlow';
+import {
+  formatConfidenceLabel,
+  formatNdviNdwi,
+  formatSatelliteSourceLabel,
+} from '../utils/analysisDisplay';
+
+function confidenceDetail(confidence) {
+  const label = formatConfidenceLabel(confidence);
+  return label === 'Confidence unavailable' ? label : label.replace('Confidence: ', '');
+}
 
 export default function VerificationTimeline({
   status,
   submissionId = 'GW-REF',
-  reward = 25,
+  reward = null,
   location = null,
+  analysis = null,
 }) {
-  // Determine state of each milestone
-  const isSubmittedDone = status !== SUBMISSION_STATES.IDLE && status !== SUBMISSION_STATES.PHOTO_UPLOADED && status !== SUBMISSION_STATES.LOCATION_SET;
+  const isSubmittedDone =
+    status !== SUBMISSION_STATES.IDLE &&
+    status !== SUBMISSION_STATES.PHOTO_UPLOADED &&
+    status !== SUBMISSION_STATES.LOCATION_SET;
   const isPhotoReceivedDone = isSubmittedDone && status !== SUBMISSION_STATES.SUBMITTED;
   const isPhotoReceivedRunning = status === SUBMISSION_STATES.SUBMITTED;
 
@@ -46,7 +55,8 @@ export default function VerificationTimeline({
     SUBMISSION_STATES.VERIFIED,
     SUBMISSION_STATES.EARNINGS_ADDED,
   ].includes(status);
-  const isAiRunning = status === SUBMISSION_STATES.PHOTO_RECEIVED || status === SUBMISSION_STATES.AI_PROCESSING;
+  const isAiRunning =
+    status === SUBMISSION_STATES.PHOTO_RECEIVED || status === SUBMISSION_STATES.AI_PROCESSING;
 
   const isSatDone = [
     SUBMISSION_STATES.SATELLITE_COMPLETE,
@@ -54,25 +64,57 @@ export default function VerificationTimeline({
     SUBMISSION_STATES.VERIFIED,
     SUBMISSION_STATES.EARNINGS_ADDED,
   ].includes(status);
-  const isSatRunning = status === SUBMISSION_STATES.AI_COMPLETE || status === SUBMISSION_STATES.SATELLITE_PROCESSING;
+  const isSatRunning =
+    status === SUBMISSION_STATES.AI_COMPLETE || status === SUBMISSION_STATES.SATELLITE_PROCESSING;
 
   const isVerifiedDone = [
     SUBMISSION_STATES.VERIFIED,
     SUBMISSION_STATES.EARNINGS_ADDED,
   ].includes(status);
-  const isVerifiedRunning = status === SUBMISSION_STATES.SATELLITE_COMPLETE || status === SUBMISSION_STATES.FINAL_VERIFICATION;
+  const isVerifiedRunning =
+    status === SUBMISSION_STATES.SATELLITE_COMPLETE ||
+    status === SUBMISSION_STATES.FINAL_VERIFICATION;
 
   const isEarningsDone = status === SUBMISSION_STATES.EARNINGS_ADDED;
   const isEarningsRunning = status === SUBMISSION_STATES.VERIFIED;
 
   const locLabel = location?.label ? ` · ${location.label}` : '';
+  const provider = analysis?.provider || 'Unavailable';
+  const lulc = analysis?.lulc || analysis?.classification || 'Unavailable';
+  const aiConfDetail = isAiDone
+    ? `${confidenceDetail(analysis?.aiConfidence)} · LULC: ${lulc}`
+    : 'Running backend Geo AI…';
+  const satSource = formatSatelliteSourceLabel(analysis) || 'Local satellite grid';
+  const satDetail = isSatDone
+    ? `Source: ${satSource} · NDVI ${formatNdviNdwi(analysis?.ndvi)} · NDWI ${formatNdviNdwi(analysis?.ndwi)}${
+        analysis?.satelliteMatch ? ` · ${analysis.satelliteMatch}` : ''
+      }`
+    : 'Querying local satellite grid…';
+  const verifyDetail = isVerifiedDone
+    ? [
+        analysis?.status ? `Status: ${analysis.status}` : null,
+        analysis?.satelliteMatch ? `Discrepancy: ${analysis.satelliteMatch}` : null,
+        analysis?.recommendation ? `Recommendation: ${analysis.recommendation}` : null,
+        analysis?.changeDetection || null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'Analysis stored'
+    : 'Awaiting backend verification…';
+  const hasReward = reward != null && reward > 0;
+  const earningsDetail = isEarningsDone
+    ? hasReward
+      ? `₹${reward} credited`
+      : 'No DBT reward from backend'
+    : hasReward
+    ? 'Preparing payout…'
+    : 'No incentive recorded';
 
   const milestones = [
     {
       id: 'submitted',
       icon: Camera,
-      title: 'Observation Submitted',
-      description: 'Geotagged ground photo submitted from field by Jal Saheli cadre',
+      title: 'Observation submitted',
+      description: 'Geotagged ground photo sent to unified backend',
       detail: `Ref: ${submissionId}${locLabel}`,
       isDone: isSubmittedDone,
       isRunning: false,
@@ -80,45 +122,47 @@ export default function VerificationTimeline({
     {
       id: 'photo_received',
       icon: CheckCircle2,
-      title: 'Photo Payload Accepted',
-      description: 'Image hash validated, EXIF GPS coordinates authenticated',
-      detail: 'SHA-256 Verified · Coordinate bounds within Maharashtra zone',
+      title: 'Submission accepted',
+      description: 'Payload received and queued for Geo AI analysis',
+      detail: isPhotoReceivedDone ? 'Stored for analysis' : 'Accepting submission…',
       isDone: isPhotoReceivedDone,
       isRunning: isPhotoReceivedRunning,
     },
     {
       id: 'ai',
       icon: Brain,
-      title: 'GeoBrain-v3 AI Classification',
-      description: 'Vision Transformer deep feature extraction & shoreline segmentation',
-      detail: isAiDone ? '92% Confidence · Water Body feature confirmed' : 'Analyzing image textures & contours…',
+      title: 'Geo AI analysis',
+      description: provider !== 'Unavailable' ? `Provider: ${provider}` : 'Backend Geo AI pipeline',
+      detail: aiConfDetail,
       isDone: isAiDone,
       isRunning: isAiRunning,
     },
     {
       id: 'satellite',
       icon: Satellite,
-      title: 'Sentinel-2 Satellite Audit',
-      description: 'Copernicus multispectral pass cross-correlation (10m resolution)',
-      detail: isSatDone ? '96% Confidence · NDWI +0.38 open water confirmed' : 'Querying coordinate tile…',
+      title: 'Satellite grid lookup',
+      description: 'Local satellite_lookup.npz (not live Bhuvan/Srishti)',
+      detail: satDetail,
       isDone: isSatDone,
       isRunning: isSatRunning,
     },
     {
       id: 'verified',
       icon: ShieldCheck,
-      title: 'Final Consensus Verified',
-      description: 'Dual-engine synthesis exceeds 85% automated verification bar',
-      detail: isVerifiedDone ? '95% Final Confidence Score · Approved ✓' : 'Synthesizing AI & satellite metrics…',
+      title: 'Verification outcome',
+      description: 'Persisted analysis from unified backend',
+      detail: verifyDetail,
       isDone: isVerifiedDone,
       isRunning: isVerifiedRunning,
     },
     {
       id: 'earnings',
       icon: IndianRupee,
-      title: 'Incentive Credited',
-      description: `Direct cadre reward credited to Jan Dhan / UPI ledger`,
-      detail: isEarningsDone ? `₹${reward} Disbursed via Direct Benefit Transfer` : 'Preparing payout ledger entry…',
+      title: 'Incentive',
+      description: hasReward
+        ? 'Direct cadre reward when returned by backend'
+        : 'No monetary reward unless backend provides one',
+      detail: earningsDetail,
       isDone: isEarningsDone,
       isRunning: isEarningsRunning,
     },
@@ -130,12 +174,10 @@ export default function VerificationTimeline({
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-slate-500" />
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Verification Lifecycle Audit Trail
+            Verification audit trail
           </h3>
         </div>
-        <span className="text-[10px] font-mono text-slate-400">
-          Deterministic Demo Log
-        </span>
+        <span className="text-[10px] font-mono text-slate-400">API-backed</span>
       </div>
 
       <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
@@ -143,7 +185,6 @@ export default function VerificationTimeline({
           const Icon = m.icon;
           return (
             <div key={m.id} className="relative group">
-              {/* Timeline marker icon */}
               <div
                 className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${
                   m.isDone
@@ -162,7 +203,6 @@ export default function VerificationTimeline({
                 )}
               </div>
 
-              {/* Text content */}
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <p
@@ -178,16 +218,14 @@ export default function VerificationTimeline({
                   </p>
                   {m.isRunning && (
                     <span className="text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded animate-pulse">
-                      In Progress
+                      In progress
                     </span>
                   )}
                   {m.isDone && (
                     <span className="text-[9px] font-bold text-emerald-600">✓ Done</span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
-                  {m.description}
-                </p>
+                <p className="text-[11px] text-slate-500 leading-snug">{m.description}</p>
                 <p
                   className={`text-[10px] font-medium font-mono ${
                     m.isDone ? 'text-emerald-700' : 'text-slate-400'

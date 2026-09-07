@@ -51,11 +51,14 @@ def submission_out(row: Submission) -> SubmissionOut:
 
 def analysis_out(row: AnalysisResult, submission: Submission, rec: Recommendation | None) -> AnalysisOut:
     raw = json.loads(row.xai_json or "{}")
+    xai_conf = raw.get("confidence")
+    if xai_conf is None:
+        xai_conf = row.confidence
     xai = XaiBlock(
-        confidence=float(raw.get("confidence") or row.confidence),
+        confidence=xai_conf,
         important_features=[FeatureImportance(**f) for f in raw.get("important_features", [])],
         explanation=list(raw.get("explanation") or []),
-        method=raw.get("method", "rule-based-demo"),
+        method=raw.get("method", "satellite-lookup"),
     )
     return AnalysisOut(
         submission_id=row.submission_id,
@@ -83,8 +86,12 @@ def analysis_out(row: AnalysisResult, submission: Submission, rec: Recommendatio
 
 def verification_out(task: VerificationTask, submission: Submission) -> VerificationTaskOut:
     reasons = [task.reason] if task.reason else []
-    if task.confidence < 0.75:
+    if task.confidence is not None and task.confidence < 0.75:
         reasons.append(f"Classifier confidence {int(task.confidence * 100)}% is below the triage threshold.")
+    risk = None
+    if task.confidence is not None:
+        risk = max(10, min(99, int((1 - task.confidence) * 100)))
+    ai_conf = int(round(task.confidence * 100)) if task.confidence is not None else None
     return VerificationTaskOut(
         id=task.id,
         submission_id=task.submission_id,
@@ -92,7 +99,7 @@ def verification_out(task: VerificationTask, submission: Submission) -> Verifica
         priority=task.priority,
         reason=task.reason,
         confidence=task.confidence,
-        ai_confidence=int(round(task.confidence * 100)),
+        ai_confidence=ai_conf,
         assigned_officer=task.assigned_officer,
         lat=task.lat,
         lng=task.lng,
@@ -108,7 +115,7 @@ def verification_out(task: VerificationTask, submission: Submission) -> Verifica
         triage_reason=task.reason,
         reasons=reasons,
         recommended_action="Immediate field verification" if task.priority == "HIGH" else "Schedule field verification",
-        risk_score=max(10, min(99, int((1 - task.confidence) * 100))),
+        risk_score=risk,
     )
 
 
@@ -121,7 +128,7 @@ def recommendation_out(row: Recommendation) -> RecommendationOut:
         important_features=[FeatureImportance(**f) for f in json.loads(row.important_features_json or "[]")],
         explanation=row.explanation,
         provider=row.provider,
-        method="rule-based-demo",
+        method=row.provider if row.provider else "label-mapping",
     )
 
 
@@ -135,6 +142,7 @@ def gis_feature(row: WatershedFeature) -> dict:
             "type": row.feature_type,
             "location": row.location,
             "status": row.status,
+            "analysis_status": row.status,
             "confidence": row.confidence,
             "description": row.description,
             "priority": row.priority,

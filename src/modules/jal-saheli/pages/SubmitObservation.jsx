@@ -49,8 +49,9 @@ import {
   initialFlowState,
   SUBMISSION_STATES,
   FLOW_STEPS,
-  runDemoFlow,
+  runLiveAnalysisFlow,
 } from '../utils/submissionFlow';
+import { getAnalysis } from '../../../services/geoAiService';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,7 +112,8 @@ export default function SubmitObservation({ onNavigateBack }) {
     state.status !== SUBMISSION_STATES.LOCATION_SET;
   const isVerifiedOutcome =
     state.status === SUBMISSION_STATES.VERIFIED ||
-    state.status === SUBMISSION_STATES.EARNINGS_ADDED;
+    state.status === SUBMISSION_STATES.EARNINGS_ADDED ||
+    state.status === SUBMISSION_STATES.FAILED;
   const hasPhoto      = !!state.photo;
   const hasType       = !!state.observationType;
   const hasLocation   = !!state.location;
@@ -188,14 +190,14 @@ export default function SubmitObservation({ onNavigateBack }) {
       });
 
       // Launch centralized deterministic demo flow (7.2s pipeline)
-      cancelDemoRef.current = runDemoFlow(
+      cancelDemoRef.current = runLiveAnalysisFlow(
         dispatch,
         {
           observationType: state.observationType,
-          reward: state.observationType?.reward ?? 25,
           submissionId: result.submissionId,
           location: state.location,
           photo: state.photo,
+          fetchAnalysis: () => getAnalysis(result.submissionId),
         },
         (finalSub) => {
           recordSubmission(finalSub);
@@ -309,8 +311,8 @@ export default function SubmitObservation({ onNavigateBack }) {
     return (
       <div className="space-y-5" ref={submitCardRef}>
         <PageHeader
-          title={isVerifiedOutcome ? "Observation Verified" : "Processing Observation"}
-          subtitle="Real-time verification pipeline • Photo → AI → Satellite → Verified → Earnings"
+          title={state.status === SUBMISSION_STATES.FAILED ? 'Geo AI unavailable' : isVerifiedOutcome ? 'Observation analyzed' : 'Processing Observation'}
+          subtitle="Photo → unified backend → Geo AI lookup → verification if flagged"
           actions={backButton}
         />
 
@@ -319,13 +321,13 @@ export default function SubmitObservation({ onNavigateBack }) {
         <FlowProgress currentStatus={state.status} steps={FLOW_STEPS} language={state.language} />
 
         {isVerifiedOutcome ? (
-          /* Final Completed State: 95% composite, ₹25 reward card, multilingual summary */
+          /* Final completed state: API-backed analysis summary */
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 space-y-5">
               <VerificationResult
                 result={state.verificationResult}
                 observationType={state.observationType}
-                reward={state.reward || state.observationType?.reward || 25}
+                reward={state.reward > 0 ? state.reward : null}
                 location={state.location}
                 language={state.language}
                 onLanguageChange={(l) => dispatch({ type: 'SET_LANGUAGE', language: l })}
@@ -337,8 +339,9 @@ export default function SubmitObservation({ onNavigateBack }) {
               <VerificationTimeline
                 status={state.status}
                 submissionId={state.submissionId}
-                reward={state.reward || state.observationType?.reward || 25}
+                reward={state.reward > 0 ? state.reward : null}
                 location={state.location}
+                analysis={state.verificationResult}
               />
             </div>
           </div>
@@ -354,7 +357,7 @@ export default function SubmitObservation({ onNavigateBack }) {
                     Verification Pipeline Active…
                   </h4>
                   <p className="text-[11px] text-amber-700">
-                    Analyzing ground photo with GeoBrain-v3 and cross-auditing with Sentinel-2 satellite data.
+                    Running unified backend Geo AI and local satellite grid lookup.
                   </p>
                 </div>
               </div>
@@ -368,13 +371,25 @@ export default function SubmitObservation({ onNavigateBack }) {
               <div className="lg:col-span-2 space-y-4">
                 <AIProcessing
                   status={state.status}
-                  aiConfidence={92}
+                  aiConfidence={state.verificationResult?.aiConfidence ?? null}
+                  provider={state.verificationResult?.provider ?? null}
+                  classification={
+                    state.verificationResult?.lulc ||
+                    state.verificationResult?.classification ||
+                    null
+                  }
                   observationType={state.observationType}
                   photo={state.photo}
                 />
                 <SatelliteVerification
                   status={state.status}
-                  satelliteConfidence={96}
+                  satelliteConfidence={state.verificationResult?.satelliteConfidence ?? null}
+                  ndvi={state.verificationResult?.ndvi ?? null}
+                  ndwi={state.verificationResult?.ndwi ?? null}
+                  ndviSource={state.verificationResult?.ndviSource ?? null}
+                  ndwiSource={state.verificationResult?.ndwiSource ?? null}
+                  satelliteMatch={state.verificationResult?.satelliteMatch ?? null}
+                  changeDetection={state.verificationResult?.changeDetection ?? null}
                   location={state.location}
                   observationType={state.observationType}
                 />
@@ -383,8 +398,9 @@ export default function SubmitObservation({ onNavigateBack }) {
                 <VerificationTimeline
                   status={state.status}
                   submissionId={state.submissionId}
-                  reward={state.observationType?.reward || 25}
+                  reward={state.observationType?.reward > 0 ? state.observationType.reward : null}
                   location={state.location}
+                  analysis={state.verificationResult}
                 />
               </div>
             </div>

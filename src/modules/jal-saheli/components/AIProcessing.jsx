@@ -25,7 +25,7 @@ import { SUBMISSION_STATES } from '../utils/submissionFlow';
 
 export default function AIProcessing({
   status,
-  aiConfidence = 92,
+  aiConfidence = null,
   observationType = 'Water Body',
   _photo = null,
 }) {
@@ -140,7 +140,7 @@ export default function AIProcessing({
                   AI Confidence
                 </span>
                 <span className="text-3xl font-extrabold text-violet-900 mt-0.5">
-                  {aiConfidence}%
+                  {aiConfidence == null ? 'n/a' : `${aiConfidence}%`}
                 </span>
                 <span className="text-[10px] text-violet-600 font-medium mt-0.5">
                   High Confidence Tier

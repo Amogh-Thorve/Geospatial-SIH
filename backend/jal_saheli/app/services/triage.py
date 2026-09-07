@@ -1,4 +1,4 @@
-"""Autonomous triage: low-confidence analyses become verification tasks."""
+"""Autonomous triage from genuine analysis outcomes only."""
 
 from __future__ import annotations
 
@@ -12,7 +12,9 @@ from app.core.contracts import Priority, SubmissionStatus, VerificationStatus
 from app.models.entities import Submission, VerificationTask
 
 
-def _priority_for(confidence: float) -> str:
+def _priority_for(confidence: float | None, anomaly: bool) -> str:
+    if confidence is None:
+        return Priority.MEDIUM if anomaly else Priority.LOW
     if confidence < 0.55:
         return Priority.HIGH
     if confidence < 0.75:
@@ -23,12 +25,15 @@ def _priority_for(confidence: float) -> str:
 async def maybe_create_verification_task(
     session: AsyncSession,
     submission: Submission,
-    confidence: float,
+    confidence: float | None,
     reason: str,
+    *,
+    anomaly: bool = False,
 ) -> VerificationTask | None:
     settings = get_settings()
     threshold = settings.ai.confidence_threshold
-    if confidence >= threshold and not (submission.status == SubmissionStatus.VERIFICATION_REQUIRED):
+    low_confidence = confidence is not None and confidence < threshold
+    if not anomaly and not low_confidence:
         return None
 
     existing = await session.execute(
@@ -41,7 +46,7 @@ async def maybe_create_verification_task(
             id=f"VQ-{submission.id.replace('GW-', '')}",
             submission_id=submission.id,
             status=VerificationStatus.PENDING,
-            priority=_priority_for(confidence),
+            priority=_priority_for(confidence, anomaly),
             reason=reason,
             confidence=confidence,
             assigned_officer=None,
@@ -54,7 +59,7 @@ async def maybe_create_verification_task(
     else:
         task.reason = reason
         task.confidence = confidence
-        task.priority = _priority_for(confidence)
+        task.priority = _priority_for(confidence, anomaly)
         task.updated_at = now
     submission.status = SubmissionStatus.VERIFICATION_REQUIRED
     return task

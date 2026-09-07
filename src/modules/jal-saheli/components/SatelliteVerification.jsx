@@ -26,7 +26,7 @@ import { SUBMISSION_STATES } from '../utils/submissionFlow';
 
 export default function SatelliteVerification({
   status,
-  satelliteConfidence = 96,
+  satelliteConfidence = null,
   location = null,
   _observationType = 'Water Body',
 }) {
@@ -135,7 +135,7 @@ export default function SatelliteVerification({
                   Satellite Confidence
                 </span>
                 <span className="text-3xl font-extrabold text-sky-900 mt-0.5">
-                  {satelliteConfidence}%
+                  {satelliteConfidence == null ? 'n/a' : `${satelliteConfidence}%`}
                 </span>
                 <span className="text-[10px] text-sky-600 font-medium mt-0.5">
                   Sentinel-2 Match

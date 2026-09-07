@@ -17,7 +17,7 @@ async def store_feedback(
     notes: str | None,
 ) -> FeedbackRecord:
     predicted = ""
-    confidence = 0.0
+    confidence = None
     if submission.analysis is not None:
         predicted = submission.analysis.classification
         confidence = submission.analysis.confidence

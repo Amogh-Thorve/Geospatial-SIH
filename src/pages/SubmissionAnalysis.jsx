@@ -8,9 +8,14 @@ import EmptyState from '../components/common/EmptyState';
 import ConnectionBanner from '../components/common/ConnectionBanner';
 import { analyzeSubmission, getAnalysis, getSubmission, listSubmissions } from '../services/geoAiService';
 import { getRecommendation } from '../services/recommendationService';
-import { MOCK_SUBMISSION_DETAIL } from '../data/mockData';
-import { AI_SUBMISSION_ANALYSIS } from '../data/aiMockData';
 import { Loader2 } from 'lucide-react';
+
+function formatConfidence(value) {
+  if (value == null || Number.isNaN(Number(value))) return 'Not produced';
+  const numeric = Number(value);
+  if (numeric <= 1) return `${Math.round(numeric * 100)}%`;
+  return `${Math.round(numeric)}%`;
+}
 
 export default function SubmissionAnalysis() {
   const [params] = useSearchParams();
@@ -23,15 +28,13 @@ export default function SubmissionAnalysis() {
   const [recommendation, setRecommendation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [geoError, setGeoError] = useState(null);
   const [busy, setBusy] = useState(false);
-
-  // Live FastAPI Backend State (Person 2)
-  const [satAnalysis, setSatAnalysis] = useState(null);
-  const [apiStatus, setApiStatus]     = useState('loading');
 
   const load = async (id) => {
     setLoading(true);
     setError(null);
+    setGeoError(null);
     try {
       const list = await listSubmissions();
       setCatalog(list);
@@ -39,16 +42,18 @@ export default function SubmissionAnalysis() {
       if (!targetId) {
         setSubmission(null);
         setAnalysis(null);
+        setRecommendation(null);
         return;
       }
       setSubmissionId(targetId);
       const sub = await getSubmission(targetId);
-      setSubmission(sub || MOCK_SUBMISSION_DETAIL);
+      setSubmission(sub);
       try {
         const existing = await getAnalysis(targetId);
         setAnalysis(existing);
-      } catch {
+      } catch (err) {
         setAnalysis(null);
+        if (err.status && err.status !== 404) setGeoError(err.message);
       }
       try {
         setRecommendation(await getRecommendation(targetId));
@@ -57,7 +62,8 @@ export default function SubmissionAnalysis() {
       }
     } catch (err) {
       setError(err.message);
-      setSubmission(MOCK_SUBMISSION_DETAIL);
+      setSubmission(null);
+      setAnalysis(null);
     } finally {
       setLoading(false);
     }
@@ -68,80 +74,25 @@ export default function SubmissionAnalysis() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedId]);
 
-  // Live backend call to FastAPI analyze-location endpoint
-  useEffect(() => {
-    const fetchAnalysis = async () => {
-      try {
-        const res = await fetch('http://localhost:8000/api/analyze-location', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            latitude: 13.2172,
-            longitude: 79.1003
-          }),
-        });
-        if (!res.ok) throw new Error('Non-200');
-        const data = await res.json();
-        console.log('[DEBUG] Live API Response for GW-1042:', data);
-        setSatAnalysis(data);
-        setApiStatus('live');
-      } catch {
-        setApiStatus('offline');
-      }
-    };
-    fetchAnalysis();
-  }, []);
-
-  const ai = AI_SUBMISSION_ANALYSIS;
-  const currentSub = submission || MOCK_SUBMISSION_DETAIL;
-
-  const classification = satAnalysis
-    ? { label: satAnalysis.prediction, confidence: satAnalysis.confidence }
-    : (analysis ? { label: analysis.classification, confidence: Math.round(analysis.confidence * 100) } : ai.classification);
-
-  const ndviDisplay = satAnalysis ? `${satAnalysis.ndvi_val}` : (analysis?.ndvi != null ? `${analysis.ndvi}` : ai.ndvi.change);
-  const ndwiDisplay = satAnalysis ? `${satAnalysis.ndwi_val}` : (analysis?.ndwi != null ? `${analysis.ndwi}` : ai.ndwi.change);
-  const matchDisplay = satAnalysis ? satAnalysis.satellite_match : (analysis?.satellite_match || ai.satelliteMatch.status);
+  const unavailable = analysis && (analysis.status === 'UNAVAILABLE' || analysis.satellite_match === 'UNAVAILABLE');
+  const hasResult = analysis && !unavailable && analysis.ndvi != null;
 
   const xaiReasons = useMemo(() => {
-    if (satAnalysis) {
-      return [
-        {
-          id: 1,
-          title: matchDisplay === 'MATCH' ? "Water Body Signature Confirmed" : "Spectral Mismatch Flagged",
-          description: matchDisplay === 'MATCH'
-            ? `Srishti LISS-III multispectral classification confirmed surface water signature (NDWI: ${ndwiDisplay}, NDVI: ${ndviDisplay}).`
-            : `Srishti LISS-III multispectral classification detected raw soil/barren land (NDWI: ${ndwiDisplay}, NDVI: ${ndviDisplay}), indicating zero surface water retention at submission coordinates.`,
-          weight: "High Impact"
-        },
-        {
-          id: 2,
-          title: "Satellite Evidence Analysis",
-          description: "IRS-R2A LISS-III multispectral data (Srishti platform) cross-referenced against post-geotag reflectance baseline.",
-          weight: "High Impact"
-        },
-        {
-          id: 3,
-          title: "Location Within Intervention Zone",
-          description: "Geotagged coordinates fall inside Micro-Watershed Catchment Zone AP-CH-04B.",
-          weight: "Medium Impact"
-        }
-      ];
-    }
-    if (!analysis?.xai?.explanation) return ai.xaiReasons;
+    if (!analysis?.xai?.explanation?.length) return [];
     return analysis.xai.explanation.map((text, idx) => ({
       id: idx,
-      title: analysis.xai.important_features?.[idx]?.feature?.replaceAll('_', ' ') || `Factor ${idx + 1}`,
+      title: analysis.xai.important_features?.[idx]?.feature?.replaceAll('_', ' ') || `Lookup note ${idx + 1}`,
       description: text,
       weight: analysis.xai.important_features?.[idx]
         ? `${Math.round(analysis.xai.important_features[idx].importance * 100)}%`
-        : 'Demo',
+        : analysis.xai.method,
     }));
-  }, [satAnalysis, analysis, matchDisplay, ndwiDisplay, ndviDisplay, ai.xaiReasons]);
+  }, [analysis]);
 
   const runAnalyze = async () => {
     if (!submissionId) return;
     setBusy(true);
+    setGeoError(null);
     setError(null);
     try {
       const result = await analyzeSubmission(submissionId);
@@ -152,7 +103,8 @@ export default function SubmissionAnalysis() {
         setRecommendation(null);
       }
     } catch (err) {
-      setError(err.message);
+      setGeoError(err.message || 'Geo AI unavailable');
+      setAnalysis(null);
     } finally {
       setBusy(false);
     }
@@ -161,17 +113,17 @@ export default function SubmissionAnalysis() {
   return (
     <div className="space-y-6 p-6">
       <PageHeader
-        title={currentSub ? `Submission Analysis — ${currentSub.id}` : 'Submission Analysis'}
-        subtitle={currentSub.title || "Check Dam Construction — Sub-basin 4B"}
+        title={submission ? `Submission Analysis — ${submission.id}` : 'Submission Analysis'}
+        subtitle={submission?.title || 'Run Geo AI on a persisted submission'}
         actions={
           <div className="flex gap-2">
             <button
               type="button"
-              disabled={busy || !currentSub}
+              disabled={busy || !submission}
               onClick={runAnalyze}
               className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold disabled:opacity-50"
             >
-              {busy ? 'Analyzing…' : 'Run demo analysis'}
+              {busy ? 'Analyzing…' : 'Run Geo AI analysis'}
             </button>
             {analysis?.anomaly && (
               <button
@@ -210,102 +162,138 @@ export default function SubmissionAnalysis() {
         </div>
       )}
 
-      {error && !currentSub && (
-        <EmptyState title="Could not load analysis" message={error} action={<button type="button" className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs" onClick={() => load(submissionId)}>Retry</button>} />
+      {error && (
+        <EmptyState
+          title="Could not load submission"
+          message={error}
+          action={<button type="button" className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs" onClick={() => load(submissionId)}>Retry</button>}
+        />
       )}
 
-      {!loading && currentSub && (
+      {!loading && !error && !submission && (
+        <EmptyState title="No submissions" message="Create a geo-tagged submission before running Geo AI." />
+      )}
+
+      {!loading && submission && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs bg-white border border-slate-200 rounded-sm p-4">
-            <div><span className="text-slate-500 block">Location</span><strong>{currentSub.location || currentSub.location_label}</strong></div>
-            <div><span className="text-slate-500 block">Coordinates</span><strong>{currentSub.coordinates}</strong></div>
-            <div><span className="text-slate-500 block">Submitter</span><strong>{currentSub.submitter?.name || currentSub.submitter_name}</strong></div>
-            <div><span className="text-slate-500 block">Captured</span><strong>{currentSub.timestamp || new Date(currentSub.captured_at).toLocaleString('en-IN')}</strong></div>
+            <div><span className="text-slate-500 block">Location</span><strong>{submission.location_label}</strong></div>
+            <div><span className="text-slate-500 block">Coordinates</span><strong>{submission.coordinates}</strong></div>
+            <div><span className="text-slate-500 block">Submitter</span><strong>{submission.submitter_name}</strong></div>
+            <div><span className="text-slate-500 block">Captured</span><strong>{submission.captured_at ? new Date(submission.captured_at).toLocaleString('en-IN') : '—'}</strong></div>
           </div>
 
-          {/* Visual Evidence Section */}
           <h3 className="text-base font-bold text-slate-900 pt-2">Visual Evidence</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            
-            {/* Field Geotagged Photo */}
             <div className="image-card bg-white border border-slate-200 rounded-sm p-4">
               <h4 className="font-semibold text-xs text-slate-800 mb-3">Field Geotagged Image</h4>
-              <div className="h-44 rounded bg-slate-50 border border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-500 text-center p-4">
-                <p className="text-xs font-semibold text-slate-700">No field photo available for this submission</p>
-                <small className="text-[11px] text-slate-400 mt-1">Submission {currentSub.id} contains geotag coordinates only</small>
-              </div>
+              {submission.photo_url ? (
+                <img src={submission.photo_url} alt="Field photo" className="h-44 w-full object-cover rounded" />
+              ) : (
+                <div className="h-44 rounded bg-slate-50 border border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-500 text-center p-4">
+                  <p className="text-xs font-semibold text-slate-700">No field photo available for this submission</p>
+                  <small className="text-[11px] text-slate-400 mt-1">Submission {submission.id} contains geotag coordinates only</small>
+                </div>
+              )}
             </div>
-
-            {/* IRS-R2A LISS-III Satellite View */}
             <div className="image-card bg-white border border-slate-200 rounded-sm p-4">
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-semibold text-xs text-slate-800">IRS-R2A LISS-III Satellite Image (Srishti Platform)</h4>
-                <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">🛰️ 24m Resolution</span>
+                <h4 className="font-semibold text-xs text-slate-800">Offline LISS-III lookup scene (static product)</h4>
+                <span className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">240 m NPZ grid</span>
               </div>
               <div className="relative w-full h-44 rounded overflow-hidden bg-slate-900">
-                <img 
-                  src="/srishti_scene.jpg" 
-                  alt="Srishti LISS-III False Color Composite Scene" 
-                  className="w-full h-full object-cover" 
+                <img
+                  src="/srishti_scene.jpg"
+                  alt="Static scene overview used to build satellite_lookup.npz"
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-2 left-2 bg-slate-900/85 text-emerald-400 px-2.5 py-1 rounded text-[11px] font-mono">
-                  📡 IRS-R2A L3 | Path: 101 / Row: 064 | Srishti GeoTIFF
+                  Not a live Bhuvan/Srishti granule
                 </div>
               </div>
             </div>
-
           </div>
 
-          {/* AI Geospatial Analysis Cards */}
           <h3 className="text-base font-bold text-slate-900 pt-2">AI Geospatial Analysis</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard 
-              label={`Classification ${apiStatus === 'live' ? '🟢 Live' : apiStatus === 'loading' ? '⏳' : '🟡 Mock'}`}
-              value={classification.label} 
-              trend={`${classification.confidence}% Confidence`} 
+          {geoError && (
+            <EmptyState title="Geo AI unavailable" message={geoError} />
+          )}
+          {!geoError && !analysis && (
+            <EmptyState
+              title="No analysis yet"
+              message="Run Geo AI analysis to look up NDVI, NDWI, and LULC from the local satellite grid."
             />
-            <StatCard 
-              label={`NDVI Index ${apiStatus === 'live' ? '🟢 Live' : ''}`} 
-              value={ndviDisplay} 
-              trend={satAnalysis ? "Srishti LISS-III real NDVI" : (ai.ndvi.interpretation || "NDVI value")} 
+          )}
+          {unavailable && (
+            <EmptyState
+              title="Geo AI unavailable"
+              message={analysis.change_detection || 'SATELLITE DATA UNAVAILABLE for these coordinates.'}
             />
-            <StatCard 
-              label={`NDWI Index ${apiStatus === 'live' ? '🟢 Live' : ''}`} 
-              value={ndwiDisplay} 
-              trend={satAnalysis ? "Srishti LISS-III real NDWI" : (ai.ndwi.interpretation || "NDWI value")} 
-            />
-            <div className="border border-slate-200 rounded-sm p-4 bg-white flex flex-col justify-center">
-              <small className="text-slate-500 mb-2 font-medium text-xs">Satellite Match {apiStatus === 'live' ? '🟢 Live' : ''}</small>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">{matchDisplay}</span>
-                <StatusBadge status={matchDisplay === 'MATCH' ? 'verified' : 'flagged'} />
-              </div>
-              <small className="mt-2 text-slate-400 text-[11px]">{classification.confidence}% Confidence</small>
-            </div>
-          </div>
-
-          {/* Explainable AI (XAI) & Technical Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <AnalysisCard 
-                title="Why was this classified?"
-                subtitle="Explainable AI reasoning for this decision"
-                reasons={xaiReasons}
-                confidenceText={`AI Confidence ${classification.confidence}%`}
+          )}
+          {hasResult && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                label="Classification"
+                value={analysis.classification || analysis.lulc}
+                trend={`${formatConfidence(analysis.confidence)} confidence`}
               />
-            </div>
-            <div className="bg-white border border-slate-200 rounded-sm p-5 text-xs space-y-3">
-              <h4 className="font-bold text-slate-900 text-sm">Technical Metrics</h4>
-              <div className="space-y-2">
-                {(ai.technicalMetrics || []).map((metric, idx) => (
-                  <div key={idx} className="flex justify-between border-b border-slate-100 pb-2 text-xs">
-                    <span className="text-slate-500">{metric.label}</span>
-                    <span className="font-semibold text-slate-800">{metric.value}</span>
-                  </div>
-                ))}
+              <StatCard
+                label="NDVI Index"
+                value={`${analysis.ndvi}`}
+                trend={analysis.ndvi_source}
+              />
+              <StatCard
+                label="NDWI Index"
+                value={`${analysis.ndwi}`}
+                trend={analysis.ndwi_source}
+              />
+              <div className="border border-slate-200 rounded-sm p-4 bg-white flex flex-col justify-center">
+                <small className="text-slate-500 mb-2 font-medium text-xs">Satellite Match</small>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold">{analysis.satellite_match}</span>
+                  <StatusBadge status={analysis.satellite_match === 'MATCH' ? 'verified' : 'flagged'} />
+                </div>
+                <small className="mt-2 text-slate-400 text-[11px]">{analysis.change_detection}</small>
               </div>
             </div>
-          </div>
+          )}
+
+          {hasResult && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                {xaiReasons.length ? (
+                  <AnalysisCard
+                    title="Why was this classified?"
+                    subtitle={analysis.xai?.method || 'Lookup metadata (not SHAP/LIME)'}
+                    reasons={xaiReasons}
+                    confidenceText={`Confidence ${formatConfidence(analysis.confidence)}`}
+                  />
+                ) : (
+                  <EmptyState title="No model explanation" message="SHAP/LIME are not executed. Lookup metadata is shown when present." />
+                )}
+              </div>
+              <div className="bg-white border border-slate-200 rounded-sm p-5 text-xs space-y-3">
+                <h4 className="font-bold text-slate-900 text-sm">Recommendation</h4>
+                {recommendation ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-500">Intervention</span>
+                      <span className="font-semibold text-slate-800">{recommendation.intervention}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-500">Suitability</span>
+                      <span className="font-semibold text-slate-800">
+                        {recommendation.suitability == null ? 'Not scored' : recommendation.suitability}
+                      </span>
+                    </div>
+                    <p className="text-slate-600">{recommendation.explanation}</p>
+                  </div>
+                ) : (
+                  <p className="text-slate-500">No recommendation stored for this submission.</p>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

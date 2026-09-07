@@ -29,13 +29,12 @@ import {
   ArrowLeft,
   Sparkles,
 } from 'lucide-react';
-import { DEMO_RESULT } from '../utils/submissionFlow';
 import LocalLanguageResult from './LocalLanguageResult';
 
 export default function VerificationResult({
-  result = DEMO_RESULT,
+  result = null,
   observationType = 'Water Body',
-  reward = 25,
+  reward = 0,
   location = null,
   language = 'en',
   onLanguageChange,
@@ -59,10 +58,10 @@ export default function VerificationResult({
       ? location.label || 'Field Location'
       : location || 'Field Location';
 
-  const aiConf = result?.aiConfidence ?? DEMO_RESULT.aiConfidence;
-  const satConf = result?.satelliteConfidence ?? DEMO_RESULT.satelliteConfidence;
-  const finalConf = result?.finalConfidence ?? DEMO_RESULT.finalConfidence;
-  const subId = result?.submissionId || 'GW-REF';
+  const aiConf = result?.aiConfidence;
+  const satConf = result?.satelliteConfidence;
+  const finalConf = result?.finalConfidence;
+  const subId = result?.submissionId || '—';
 
 
 
@@ -104,7 +103,7 @@ export default function VerificationResult({
                 Final Consensus
               </span>
               <span className="text-3xl font-black text-white leading-none">
-                {finalConf}%
+                {finalConf == null ? 'n/a' : `${finalConf}%`}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-emerald-500/30 flex items-center justify-center border border-emerald-300/40">
@@ -123,7 +122,7 @@ export default function VerificationResult({
               AI Vision Analysis
             </span>
             <span className="text-xl font-extrabold text-violet-700 mt-1 block">
-              {aiConf}% Confidence
+              {aiConf == null ? 'Confidence not produced' : `${aiConf}% Confidence`}
             </span>
             <span className="text-[10px] text-slate-500 font-medium">GeoBrain-v3 Model</span>
           </div>
@@ -139,7 +138,7 @@ export default function VerificationResult({
               Satellite Audit
             </span>
             <span className="text-xl font-extrabold text-sky-600 mt-1 block">
-              {satConf}% Confidence
+              {satConf == null ? 'Confidence not produced' : `${satConf}% Confidence`}
             </span>
             <span className="text-[10px] text-slate-500 font-medium">Sentinel-2 Multispectral</span>
           </div>
@@ -155,7 +154,7 @@ export default function VerificationResult({
               Final Consensus
             </span>
             <span className="text-xl font-extrabold text-emerald-700 mt-1 block">
-              {finalConf}% Verified
+              {finalConf == null ? 'Not verified by model probability' : `${finalConf}% Verified`}
             </span>
             <span className="text-[10px] text-emerald-600 font-semibold">Exceeds 85% Bar</span>
           </div>

@@ -1,4 +1,8 @@
-"""Predictive recommendation engine (rule-based demo, not a trained model)."""
+"""Predictive recommendation engine.
+
+Does not invent classifier confidence. Suitability is omitted when no
+Random Forest probability exists (location lookup has none).
+"""
 
 from __future__ import annotations
 
@@ -12,38 +16,50 @@ INTERVENTION_BY_CLASS = {
     "Contour Trench": "Contour Trench",
     "Percolation Tank": "Recharge Structure",
     "Boulder Check": "Boulder Check",
+    "Water": "Waterbody protection",
+    "Vegetation": "Vegetation / recharge",
+    "Agriculture": "Farm Pond",
+    "Barren": "Check Dam",
 }
 
 
 def recommend(analysis: dict[str, Any], extras: dict[str, Any] | None = None) -> dict[str, Any]:
     extras = extras or {}
-    classification = analysis.get("classification") or "Farm Pond"
-    intervention = INTERVENTION_BY_CLASS.get(classification, "Farm Pond")
-    base = float(analysis.get("confidence") or 0.7)
-    rainfall = extras.get("rainfall_index", 0.72)
-    soil = extras.get("soil_suitability", 0.8)
-    runoff = extras.get("runoff_potential", 0.78)
-    historical = extras.get("historical_success", 0.86)
-    suitability = min(0.97, (base * 0.35) + (runoff * 0.25) + (soil * 0.2) + (historical * 0.2))
-    reasons = [
-        "High runoff potential in the demo terrain profile",
-        "Suitable soil / slope combination for water harvesting",
-        "Similar interventions succeeded historically in the demo record set",
-    ]
+    classification = analysis.get("classification") or analysis.get("lulc") or "Unknown"
+    intervention = INTERVENTION_BY_CLASS.get(classification, classification)
     xai = build_xai(analysis, extras)
+    confidence = analysis.get("confidence")
+    if confidence is None:
+        return {
+            "intervention": intervention,
+            "suitability": None,
+            "reasons": [
+                "No Random Forest class probability was produced for this location lookup.",
+                "Recommendation is a LULC label mapping only, not a scored suitability model.",
+            ],
+            "important_features": [],
+            "explanation": " ".join(xai["explanation"]),
+            "provider": "LulcLabelMapping",
+            "method": "label-mapping",
+        }
+
+    rainfall = extras.get("rainfall_index")
+    soil = extras.get("soil_suitability")
+    runoff = extras.get("runoff_potential")
+    historical = extras.get("historical_success")
+    terms = [float(confidence)]
+    for value in (rainfall, soil, runoff, historical):
+        if value is not None:
+            terms.append(float(value))
+    suitability = min(0.97, sum(terms) / len(terms))
     return {
         "intervention": intervention,
         "suitability": round(suitability, 2),
-        "reasons": reasons,
+        "reasons": [
+            f"Random Forest max-class probability {confidence:.3f}",
+        ],
         "important_features": xai["important_features"],
         "explanation": " ".join(xai["explanation"]),
-        "provider": "DemoRecommendationEngine",
-        "method": "rule-based-demo",
-        "inputs": {
-            "rainfall_index": rainfall,
-            "soil_suitability": soil,
-            "runoff_potential": runoff,
-            "historical_success": historical,
-            "source": "demo-tables",
-        },
+        "provider": "RfProbabilityMapping",
+        "method": "rf-probability",
     }

@@ -31,10 +31,12 @@ os.environ["ENV_FILE"] = str(_env_test_path)
 from app import models as _models  # noqa: E402, F401
 from app.config import Settings, get_settings  # noqa: E402
 from app.db.database import close_db, init_db  # noqa: E402
+from app.geoai.engine import load_geoai_assets  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 # Ensure any cached settings instance is cleared so our env vars take effect
 get_settings.cache_clear()
+load_geoai_assets()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

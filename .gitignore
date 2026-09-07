@@ -14,8 +14,11 @@ dist-ssr
 .env
 .venv
 venv
+# Python bytecode
 __pycache__/
+**/__pycache__/
 *.py[cod]
+*.pyc
 *.db
 uploads/
 test_uploads/

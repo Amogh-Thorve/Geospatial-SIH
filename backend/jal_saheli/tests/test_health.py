@@ -127,7 +127,15 @@ class TestHealthComponents:
         """All expected components must appear in the response."""
         response = await client.get("/health")
         components = response.json()["components"]
-        expected = {"database", "telegram", "ai_service", "satellite_service", "storage", "authentication"}
+        expected = {
+            "database",
+            "telegram",
+            "ai_service",
+            "satellite_service",
+            "storage",
+            "authentication",
+            "geo_ai",
+        }
         missing = expected - components.keys()
         assert not missing, f"Missing components in health response: {missing}"
 

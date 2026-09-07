@@ -59,6 +59,7 @@ export {
   DEMO_RESULT,
   DEMO_DELAYS,
   runDemoFlow,
+  runLiveAnalysisFlow,
   flowReducer,
   initialFlowState,
   generateSubmissionId,

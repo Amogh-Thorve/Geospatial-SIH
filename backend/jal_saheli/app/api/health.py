@@ -127,7 +127,18 @@ async def health_check() -> JSONResponse:
         required_healthy = False
         logger.warning("Health check: storage not configured", extra={"backend": settings.storage.backend})
 
-    # ── Auth configuration (warning only) ────────────────────────────────────
+    # ── Geo AI local model / lookup (required for Geo AI routes; optional for core API) ─
+    from app.geoai.engine import geoai_status
+
+    geo = geoai_status()
+    components["geo_ai"] = {
+        "status": "healthy" if geo["model_loaded"] and geo["lookup_loaded"] else "unavailable",
+        "model_loaded": geo["model_loaded"],
+        "lookup_loaded": geo["lookup_loaded"],
+        "pixel_size_m": geo["pixel_size_m"],
+        "detail": geo["detail"],
+        "required": False,
+    }
     auth_warn = not settings.auth.jwt_configured and settings.app.env == "production"
     components["authentication"] = {
         "status": "warning" if auth_warn else "healthy",

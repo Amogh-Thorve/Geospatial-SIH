@@ -124,8 +124,8 @@ async def dashboard_summary(db: AsyncSession = Depends(get_db_session)) -> Dashb
         activity=activity,
         system_status=[
             {"id": "api", "label": "GeoWise API", "status": "operational", "note": "Local FastAPI"},
-            {"id": "geoai", "label": "Geo AI provider", "status": "demo", "note": "MockGeoAIProvider — not live ML"},
-            {"id": "satellite", "label": "Satellite adapter", "status": "demo", "note": "Srishti adapter is local/stub"},
+            {"id": "geoai", "label": "Geo AI provider", "status": "operational", "note": "Ved Random Forest + satellite_lookup.npz"},
+            {"id": "satellite", "label": "Satellite adapter", "status": "local-lookup", "note": "Offline NPZ scene — Bhuvan not implemented"},
             {"id": "telegram", "label": "Telegram adapter", "status": "demo", "note": "LocalTelegramBotProvider"},
         ],
         totals={
@@ -334,8 +334,10 @@ async def jal_create(
     db: AsyncSession = Depends(get_db_session),
 ) -> JalSaheliSubmissionOut:
     jid = _next_id("JS")
-    lat = payload.lat if payload.lat is not None else 13.6288
-    lng = payload.lng if payload.lng is not None else 79.4192
+    if payload.lat is None or payload.lng is None:
+        raise HTTPException(status_code=422, detail="lat and lng are required")
+    lat = payload.lat
+    lng = payload.lng
     core = SubmissionCreate(
         title=payload.title or payload.type_label or payload.observation_type,
         location_label=payload.location_label,

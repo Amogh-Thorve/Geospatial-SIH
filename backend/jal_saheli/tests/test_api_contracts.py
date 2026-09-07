@@ -22,8 +22,8 @@ async def test_create_submission_and_analysis(client: AsyncClient) -> None:
             "title": "Farm Pond demo site",
             "location_label": "Anantapur test plot",
             "district": "Anantapur",
-            "lat": 14.68,
-            "lng": 77.60,
+            "lat": 13.2172,
+            "lng": 79.1003,
             "classification": "Farm Pond",
             "submitter_name": "Test Officer",
             "source": "drishti",
@@ -36,10 +36,10 @@ async def test_create_submission_and_analysis(client: AsyncClient) -> None:
     analyzed = await client.post(f"/api/submissions/{submission_id}/analyze")
     assert analyzed.status_code == 200, analyzed.text
     payload = analyzed.json()
-    assert payload["provider"] == "MockGeoAIProvider"
+    assert payload["provider"] == "VedGeoAI-RF-Lookup"
     assert payload["submission_id"] == submission_id
     assert "ndvi" in payload
-    assert payload["xai"]["method"] == "rule-based-demo"
+    assert payload["xai"]["method"] in ("satellite-lookup", "unavailable")
 
     fetched = await client.get(f"/api/submissions/{submission_id}/analysis")
     assert fetched.status_code == 200
@@ -54,8 +54,8 @@ async def test_verification_update_and_recommendation(client: AsyncClient) -> No
             "title": "Check Dam Construction — pytest",
             "location_label": "Chittoor test plot",
             "district": "Chittoor",
-            "lat": 13.62,
-            "lng": 79.41,
+            "lat": 13.2172,
+            "lng": 79.1003,
             "classification": "Check Dam",
             "submitter_name": "Test Officer",
             "source": "drishti",
@@ -85,16 +85,16 @@ async def test_verification_update_and_recommendation(client: AsyncClient) -> No
     rec = await client.get(f"/api/recommendations/{submission_id}")
     assert rec.status_code == 200
     body = rec.json()
-    assert body["provider"] == "DemoRecommendationEngine"
-    assert 0 <= body["suitability"] <= 1
+    assert body["provider"] in ("LulcLabelMapping", "RfProbabilityMapping", "DemoRecommendationEngine")
+    assert body["suitability"] is None or 0 <= body["suitability"] <= 1
 
     jal = await client.post(
         "/api/jal-saheli/submissions",
         json={
             "observation_type": "farm_pond",
             "type_label": "Farm Pond",
-            "lat": 14.68,
-            "lng": 77.60,
+            "lat": 13.2172,
+            "lng": 79.1003,
             "location_label": "pytest plot",
             "notes": "jal post",
         },

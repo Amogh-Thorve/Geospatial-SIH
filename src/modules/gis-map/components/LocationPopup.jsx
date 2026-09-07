@@ -52,7 +52,9 @@ export default function LocationPopup({ location, onClose, onAnalyze }) {
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Confidence</span>
-          <span className="font-medium text-slate-700">{Math.round(location.confidence * 100)}%</span>
+          <span className="font-medium text-slate-700">
+            {location.confidence == null ? 'Not produced' : `${Math.round(location.confidence * 100)}%`}
+          </span>
         </div>
       </div>
 

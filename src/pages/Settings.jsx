@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import ConnectionBanner from '../components/common/ConnectionBanner';
-import { Check, Globe, Shield, Bell, Info, AlertTriangle } from 'lucide-react';
+import { Check, Globe, Shield, Bell, Info, AlertTriangle, Satellite } from 'lucide-react';
 import { useApiStatus } from '../context/ApiStatusContext';
+import { getGeoAiHealth } from '../services/geoAiService';
 
 const STORAGE_KEY = 'geowise.localPrefs';
 
@@ -21,13 +22,47 @@ function loadPrefs() {
   }
 }
 
+function bhuvanWmsLabel(bhuvan) {
+  if (!bhuvan) return 'Unknown';
+  if (bhuvan.reachable) return 'Connected';
+  if (bhuvan.enabled) return 'Enabled — unreachable';
+  return 'Disabled';
+}
+
+function bhuvanLulcLabel(lulc) {
+  if (!lulc) return 'Unknown';
+  if (lulc.configured) return 'Configured (token set)';
+  if (lulc.enabled) return 'Enabled — token missing';
+  return 'Disabled';
+}
+
 export default function Settings() {
   const { status, health } = useApiStatus();
   const [settings, setSettings] = useState(loadPrefs);
   const [saved, setSaved] = useState(false);
+  const [geoHealth, setGeoHealth] = useState(null);
+  const [geoError, setGeoError] = useState(null);
 
   useEffect(() => {
     setSettings(loadPrefs());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const payload = await getGeoAiHealth();
+        if (!cancelled) {
+          setGeoHealth(payload);
+          setGeoError(null);
+        }
+      } catch (err) {
+        if (!cancelled) setGeoError(err.message || 'Could not load Geo AI health');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSave = (e) => {
@@ -41,7 +76,7 @@ export default function Settings() {
     <div className="space-y-6 max-w-4xl">
       <PageHeader
         title="Settings"
-        subtitle="Local browser preferences only. Nothing on this page is persisted on the server."
+        subtitle="Local browser preferences and live Geo AI / Bhuvan status."
       />
       <ConnectionBanner />
 
@@ -58,7 +93,35 @@ export default function Settings() {
         </h2>
         <p>API connection: <strong>{status}</strong></p>
         <p>Backend environment: <strong>{health?.environment || 'n/a'}</strong></p>
-        <p>Optional integrations (Bhuvan LULC, Telegram) activate when credentials are set in backend env.</p>
+        <p>Geo AI model: <strong>{geoHealth?.model_loaded ? 'Loaded' : 'Unavailable'}</strong></p>
+        <p>Local satellite grid: <strong>{geoHealth?.lookup_loaded ? 'Loaded' : 'Unavailable'}</strong></p>
+      </section>
+
+      <section className="bg-white border border-slate-200 rounded-sm p-6 space-y-3 text-xs">
+        <h2 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+          <Satellite className="w-4 h-4 text-sky-600" /> Bhuvan integration
+        </h2>
+        {geoError && <p className="text-rose-700">{geoError}</p>}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="border border-slate-200 rounded-sm p-3 bg-slate-50">
+            <span className="text-slate-500 block">Bhuvan WMS imagery</span>
+            <strong className="text-slate-900">{bhuvanWmsLabel(geoHealth?.bhuvan)}</strong>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Optional map imagery. Set <code>BHUVAN_ENABLED=true</code> in backend <code>.env</code>.
+            </p>
+          </div>
+          <div className="border border-slate-200 rounded-sm p-3 bg-slate-50">
+            <span className="text-slate-500 block">Bhuvan LULC Statistics</span>
+            <strong className="text-slate-900">{bhuvanLulcLabel(geoHealth?.bhuvan_lulc)}</strong>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Point LULC API. Set <code>BHUVAN_LULC_ENABLED=true</code> and <code>BHUVAN_ACCESS_TOKEN</code>.
+            </p>
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-500 flex gap-1">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          Bhuvan is used during analysis when enabled. NDVI/NDWI still come from the local satellite grid unless Bhuvan returns those values.
+        </p>
       </section>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -92,7 +155,7 @@ export default function Settings() {
           </label>
           <p className="text-[11px] text-slate-500 flex gap-1">
             <AlertTriangle className="w-3.5 h-3.5" />
-            Production settings (SSO, Bhuvan token, Telegram webhook) belong in backend environment variables, not this form.
+            Production credentials (Bhuvan token, Telegram webhook) belong in backend environment variables.
           </p>
         </section>
 

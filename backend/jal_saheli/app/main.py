@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 if settings.app.seed_demo_data:
                     await seed_if_empty(session)
                 else:
-                    from app.services.seed import purge_demo_seed
+                    from app.services.seed import ensure_jal_saheli_profile, purge_demo_seed
 
                     removed = await purge_demo_seed(session)
                     if removed:
@@ -102,8 +102,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                             "Removed previously seeded demo records",
                             extra={"removed": removed},
                         )
-                    else:
-                        logger.info("Demo seed disabled (SEED_DEMO_DATA=false) — empty honest database")
+                    await ensure_jal_saheli_profile(session)
+                    logger.info("Demo seed disabled (SEED_DEMO_DATA=false) — empty honest database")
         except Exception as exc:
             logger.error("Failed during seed/purge startup step", extra={"error": str(exc)})
 

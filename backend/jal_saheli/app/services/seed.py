@@ -334,6 +334,32 @@ DEMO_TASK_IDS = ("VQ-1042", "VQ-1044")
 DEMO_JAL_SUBMISSION_IDS = ("JS-S-1012", "JS-S-1042")
 DEMO_PROFILE_IDS = ("JS-001",)
 
+DEFAULT_JAL_SAHELI_PROFILE_ID = "JS-001"
+
+
+async def ensure_jal_saheli_profile(session: AsyncSession) -> JalSaheliProfile:
+    """Ensure the operational Jal Saheli profile exists (empty/honest defaults, not demo seed)."""
+    profile = (
+        await session.execute(
+            select(JalSaheliProfile).where(JalSaheliProfile.id == DEFAULT_JAL_SAHELI_PROFILE_ID)
+        )
+    ).scalars().first()
+    if profile is not None:
+        return profile
+    profile = JalSaheliProfile(
+        id=DEFAULT_JAL_SAHELI_PROFILE_ID,
+        name="Jal Saheli",
+        role="Field water steward",
+        village="Andhra Pradesh pilot region",
+        phone="",
+        badge="",
+        jal_credits=0,
+    )
+    session.add(profile)
+    await session.flush()
+    logger.info("Created default Jal Saheli profile %s", DEFAULT_JAL_SAHELI_PROFILE_ID)
+    return profile
+
 
 async def purge_demo_seed(session: AsyncSession) -> int:
     """Remove previously seeded demo records so live runs show empty/honest data."""

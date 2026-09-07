@@ -47,6 +47,8 @@ import VerificationHistory  from './VerificationHistory';
 import Earnings             from './Earnings';
 
 import { getProfile, getSubmissions, getEarningsSummary } from '../services/jalSaheliApi';
+import { getGeoAiHealth } from '../../../services/geoAiService';
+import ConnectionBanner from '../../../components/common/ConnectionBanner';
 
 // ---------------------------------------------------------------------------
 // Sub-component: Pipeline lifecycle banner
@@ -54,8 +56,8 @@ import { getProfile, getSubmissions, getEarningsSummary } from '../services/jalS
 
 const PIPELINE_STEPS = [
   { id: 'submit',       icon: Camera,       label: 'Photo',    sub: 'Geotagged upload', color: 'text-blue-600',    bg: 'bg-blue-50 border-blue-100 hover:border-blue-300' },
-  { id: 'verifications',icon: Brain,        label: 'AI Vision',sub: 'GeoBrain-v3',      color: 'text-violet-600',  bg: 'bg-violet-50 border-violet-100 hover:border-violet-300' },
-  { id: 'verifications',icon: Satellite,    label: 'Satellite',sub: 'Sentinel-2 audit', color: 'text-sky-600',     bg: 'bg-sky-50 border-sky-100 hover:border-sky-300' },
+  { id: 'verifications',icon: Brain,        label: 'Geo AI',   sub: 'Ved RF + NPZ',     color: 'text-violet-600',  bg: 'bg-violet-50 border-violet-100 hover:border-violet-300' },
+  { id: 'verifications',icon: Satellite,    label: 'Satellite',sub: 'Local / Bhuvan',   color: 'text-sky-600',     bg: 'bg-sky-50 border-sky-100 hover:border-sky-300' },
   { id: 'verifications',icon: ShieldCheck,  label: 'Verified', sub: 'Officer triage',   color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300' },
   { id: 'earnings',     icon: IndianRupee,  label: 'Jal Credits', sub: 'Non-monetary score', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300' },
 ];
@@ -110,6 +112,7 @@ export default function JalSaheliDashboard({
   const [profile, setProfile]           = useState(null);
   const [submissions, setSubmissions]   = useState([]);
   const [earningsSummary, setEarnings]  = useState(null);
+  const [geoHealth, setGeoHealth]       = useState(null);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
 
@@ -117,16 +120,18 @@ export default function JalSaheliDashboard({
     setLoading(true);
     setError(null);
     try {
-      const [p, s, e] = await Promise.all([
+      const [p, s, e, geo] = await Promise.all([
         getProfile(),
         getSubmissions(),
         getEarningsSummary(),
+        getGeoAiHealth().catch(() => null),
       ]);
       setProfile(p);
       setSubmissions(s);
       setEarnings(e);
+      setGeoHealth(geo);
     } catch (err) {
-      setError('Failed to load dashboard data. Please try again.');
+      setError(err?.message || 'Failed to load dashboard data. Please try again.');
       console.error('[JalSaheliDashboard] load error:', err);
     } finally {
       setLoading(false);
@@ -297,9 +302,37 @@ export default function JalSaheliDashboard({
       {/* 1. Header */}
       <PageHeader
         title="Jal Saheli — Field Worker Hub"
-        subtitle="Community water monitoring • Photo → AI → Satellite → Verified → Earnings"
+        subtitle="Community water monitoring • Photo → Geo AI → Satellite → Verified → Jal Credits"
         actions={headerActions}
       />
+
+      <ConnectionBanner />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="bg-white border border-slate-200 rounded-sm p-3">
+          <span className="text-slate-500 block">Bhuvan WMS</span>
+          <strong>
+            {geoHealth?.bhuvan?.reachable
+              ? 'Connected'
+              : geoHealth?.bhuvan?.enabled
+              ? 'Unavailable'
+              : 'Disabled'}
+          </strong>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-sm p-3">
+          <span className="text-slate-500 block">Bhuvan LULC</span>
+          <strong>
+            {geoHealth?.bhuvan_lulc?.configured
+              ? 'Configured'
+              : geoHealth?.bhuvan_lulc?.enabled
+              ? 'Enabled — token missing'
+              : 'Disabled'}
+          </strong>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Used on submit analysis when enabled in backend env.
+          </p>
+        </div>
+      </div>
 
       {/* 2. Profile card */}
       <JalSaheliProfile profile={profile} />

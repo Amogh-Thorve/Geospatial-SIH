@@ -78,6 +78,37 @@ class VedGeoAIProvider:
         try:
             lookup = lookup_location(float(payload["lat"]), float(payload["lng"]))
         except SatelliteUnavailableError as exc:
+            # Bhuvan LULC may still be usable when the local NPZ scene is unavailable.
+            lulc_label = ""
+            if lulc_source == "bhuvan_lulc_250k" and bhuvan_lulc_result:
+                lulc_label = str(bhuvan_lulc_result.get("lulc") or "")
+            if lulc_label:
+                return {
+                    "provider": self.name,
+                    "available": True,
+                    "classification": lulc_label,
+                    "confidence": None,
+                    "satellite_match": "UNAVAILABLE",
+                    "ndvi": None,
+                    "ndwi": None,
+                    "ndvi_source": "unavailable",
+                    "ndwi_source": "unavailable",
+                    "lulc": lulc_label,
+                    "change_detection": _local_change_detection(bhuvan_result, bhuvan_lulc_result),
+                    "anomaly": True,
+                    "fused_record": fused,
+                    "status": "COMPLETED",
+                    "extra": exc.extra,
+                    "satellite_imagery_provider": satellite_imagery_provider,
+                    "satellite_imagery_type": satellite_imagery_type,
+                    "bhuvan": bhuvan_result,
+                    "bhuvan_lulc": bhuvan_lulc_result,
+                    "lulc_source": lulc_source,
+                    "source": "bhuvan_lulc_250k",
+                    "prediction": lulc_label,
+                    "ndvi_val": None,
+                    "ndwi_val": None,
+                }
             return {
                 "provider": self.name,
                 "available": False,
@@ -132,6 +163,10 @@ class VedGeoAIProvider:
             "bhuvan": bhuvan_result,
             "bhuvan_lulc": bhuvan_lulc_result,
             "lulc_source": lulc_source,
+            # Backward-compatible analyze-location aliases
+            "prediction": classification_label,
+            "ndvi_val": lookup["ndvi_val"],
+            "ndwi_val": lookup["ndwi_val"],
         }
 
 

@@ -336,3 +336,33 @@ def test_xai_persists_bhuvan_lulc_metadata() -> None:
     assert xai["bhuvan_lulc"]["dataset"] == "Bhuvan LULC 250K"
     assert xai["confidence"] is None
     assert "Bhuvan LULC 250K class: Agriculture" in " ".join(xai["explanation"])
+
+
+def test_successful_point_description_field(lulc_cfg: BhuvanLulcConfig) -> None:
+    """Live Bhuvan point API returns Description (not LULC Description)."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = (
+        '[{"Year":"2015_16","Description":"Built-up                                                                                            "}]'
+    )
+    mock_response.content = mock_response.text.encode()
+    mock_response.headers = {"content-type": "text/html; charset=UTF-8"}
+
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.get.return_value = mock_response
+
+    with patch("app.geoai.providers.bhuvan_lulc.httpx.Client", return_value=mock_client):
+        result = query_lulc_statistics(13.2172, 79.1003, config=lulc_cfg)
+
+    assert result["status"] == "AVAILABLE"
+    assert result["lulc"] == "Built-up"
+    assert result["year"] == "2015_16"
+    assert "Built-up" in result["statistics"]
+
+
+def test_default_timeout_is_sixty_seconds() -> None:
+    from app.config import BhuvanSettings
+
+    settings = BhuvanSettings()
+    assert settings.timeout_seconds == 60.0

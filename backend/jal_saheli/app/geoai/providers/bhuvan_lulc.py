@@ -148,18 +148,45 @@ def _parse_statistics_records(payload: Any) -> list[dict[str, Any]]:
     return [row for row in payload if isinstance(row, dict)]
 
 
+def _record_lulc_label(row: dict[str, Any]) -> str | None:
+    """Extract LULC class label from known Bhuvan response field names.
+
+    Live point API returns ``Description``; AOI/docs may return ``LULC Description``.
+    """
+    for key in (
+        "LULC Description",
+        "Description",
+        "description",
+        "lulc",
+        "class",
+    ):
+        value = row.get(key)
+        if value is None:
+            continue
+        label = str(value).strip()
+        if label:
+            return label
+    return None
+
+
+def _record_year(row: dict[str, Any]) -> str | None:
+    for key in ("Year", "year"):
+        value = row.get(key)
+        if value is None:
+            continue
+        year = str(value).strip()
+        if year:
+            return year
+    return None
+
+
 def _dominant_lulc_class(records: list[dict[str, Any]]) -> str | None:
     if not records:
         return None
     best_label = None
     best_area = -1.0
     for row in records:
-        label = (
-            row.get("LULC Description")
-            or row.get("lulc")
-            or row.get("class")
-            or row.get("description")
-        )
+        label = _record_lulc_label(row)
         if not label:
             continue
         area_raw = row.get("Area in Sq. Km") or row.get("area_sq_km") or row.get("area")
@@ -169,36 +196,26 @@ def _dominant_lulc_class(records: list[dict[str, Any]]) -> str | None:
             area = 0.0
         if area > best_area:
             best_area = area
-            best_label = str(label).strip()
+            best_label = label
     if best_label:
         return best_label
-    first = records[0]
-    return str(
-        first.get("LULC Description")
-        or first.get("lulc")
-        or first.get("class")
-        or first.get("description")
-        or ""
-    ).strip() or None
+    return _record_lulc_label(records[0])
 
 
 def _statistics_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, float] = {}
     for row in records:
-        label = (
-            row.get("LULC Description")
-            or row.get("lulc")
-            or row.get("class")
-            or row.get("description")
-        )
+        label = _record_lulc_label(row)
         if not label:
             continue
         area_raw = row.get("Area in Sq. Km") or row.get("area_sq_km") or row.get("area")
         try:
             area = float(area_raw)
         except (TypeError, ValueError):
+            # Point API often returns Description without area; still record the class.
+            summary.setdefault(label, 0.0)
             continue
-        summary[str(label)] = summary.get(str(label), 0.0) + area
+        summary[label] = summary.get(label, 0.0) + area
     return summary
 
 
@@ -236,12 +253,18 @@ def _available(
     metadata: dict[str, Any],
 ) -> dict[str, Any]:
     dominant = _dominant_lulc_class(records)
+    year = config.year
+    for row in records:
+        extracted = _record_year(row)
+        if extracted:
+            year = extracted
+            break
     return {
         "provider": "Bhuvan",
         "provider_type": provider_type,
         "status": "AVAILABLE",
         "dataset": DATASET_NAME,
-        "year": config.year,
+        "year": year,
         "lulc": dominant,
         "statistics": _statistics_summary(records),
         "source": metadata.get("request_url"),
@@ -320,7 +343,7 @@ def _request_lulc(
             longitude=longitude,
             metadata=metadata,
         )
-    return _available(
+    result = _available(
         config,
         provider_type=provider_type,
         latitude=latitude,
@@ -328,6 +351,17 @@ def _request_lulc(
         records=records,
         metadata=metadata,
     )
+    if not result.get("lulc"):
+        metadata["preview"] = body[:300]
+        return _unavailable(
+            config,
+            "BHUVAN_LULC_EMPTY_OR_MALFORMED",
+            provider_type=provider_type,
+            latitude=latitude,
+            longitude=longitude,
+            metadata=metadata,
+        )
+    return result
 
 
 def query_lulc_statistics(

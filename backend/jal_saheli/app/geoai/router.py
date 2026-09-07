@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.provider import get_geo_ai_provider
 from app.db.database import get_db_session
 from app.geoai.engine import (
     SatelliteUnavailableError,
     geoai_status,
-    lookup_location,
     predict_lulc_from_bands,
 )
 from app.services.workflow import analyze_submission, get_submission
@@ -64,10 +64,52 @@ async def analyze_location(
     loc: LocationRequest,
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
-    try:
-        result = lookup_location(loc.latitude, loc.longitude)
-    except SatelliteUnavailableError as exc:
-        raise _unavailable_http(exc) from exc
+    """Analyze a location via Ved Geo AI (Bhuvan LULC when enabled, else local NPZ)."""
+    analysis = get_geo_ai_provider().analyze(
+        {"lat": loc.latitude, "lng": loc.longitude}
+    )
+
+    if analysis.get("available") is False:
+        code = analysis.get("code") or "SATELLITE DATA UNAVAILABLE"
+        extra = analysis.get("extra") or {}
+        status_code = 503 if code in {"MODEL_UNAVAILABLE", "LOOKUP_UNAVAILABLE"} else 422
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "code": code,
+                "message": analysis.get("change_detection") or "SATELLITE DATA UNAVAILABLE",
+                "available": False,
+                "lulc_source": analysis.get("lulc_source"),
+                "bhuvan_lulc": analysis.get("bhuvan_lulc"),
+                **extra,
+            },
+        )
+
+    result = {
+        "available": True,
+        "prediction": analysis.get("prediction") or analysis.get("lulc") or analysis.get("classification"),
+        "classification": analysis.get("classification"),
+        "lulc": analysis.get("lulc"),
+        "lulc_source": analysis.get("lulc_source"),
+        "ndvi_val": analysis.get("ndvi_val", analysis.get("ndvi")),
+        "ndwi_val": analysis.get("ndwi_val", analysis.get("ndwi")),
+        "ndvi": analysis.get("ndvi"),
+        "ndwi": analysis.get("ndwi"),
+        "ndvi_source": analysis.get("ndvi_source"),
+        "ndwi_source": analysis.get("ndwi_source"),
+        "satellite_match": analysis.get("satellite_match"),
+        "confidence": analysis.get("confidence"),
+        "source": analysis.get("source"),
+        "change_detection": analysis.get("change_detection"),
+        "provider": analysis.get("provider"),
+        "bhuvan_lulc": analysis.get("bhuvan_lulc"),
+        "bhuvan": analysis.get("bhuvan"),
+        "satellite_imagery_provider": analysis.get("satellite_imagery_provider"),
+        "satellite_imagery_type": analysis.get("satellite_imagery_type"),
+        "row": analysis.get("row"),
+        "col": analysis.get("col"),
+        "pixel_size_m": analysis.get("pixel_size_m"),
+    }
 
     if loc.submission_id:
         row = await get_submission(db, loc.submission_id)

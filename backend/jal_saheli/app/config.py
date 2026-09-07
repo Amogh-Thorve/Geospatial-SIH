@@ -172,7 +172,7 @@ class BhuvanSettings(BaseSettings):
     version: str = Field(default="1.1.1", validation_alias="BHUVAN_VERSION")
     crs: str = Field(default="EPSG:4326", validation_alias="BHUVAN_CRS")
     format: str = Field(default="image/png", validation_alias="BHUVAN_FORMAT")
-    timeout_seconds: float = Field(default=15.0, validation_alias="BHUVAN_TIMEOUT")
+    timeout_seconds: float = Field(default=60.0, validation_alias="BHUVAN_TIMEOUT")
     bbox_delta_deg: float = Field(default=0.05, validation_alias="BHUVAN_BBOX_DELTA")
     map_width: int = Field(default=256, validation_alias="BHUVAN_MAP_WIDTH")
     map_height: int = Field(default=256, validation_alias="BHUVAN_MAP_HEIGHT")

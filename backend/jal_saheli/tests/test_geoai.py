@@ -53,11 +53,130 @@ async def test_analyze_location_in_scene(client: AsyncClient) -> None:
     assert body["available"] is True
     assert body["source"] == "real_satellite_grid"
     assert body["prediction"] == "Barren"
+    assert body["lulc"] == "Barren"
+    assert body["lulc_source"] == "local_satellite_grid"
     assert body["ndvi_val"] == 0.106
     assert body["ndwi_val"] == 0.0
     assert body["satellite_match"] == "DISCREPANCY"
     assert body["confidence"] is None
     assert body["persisted"] is False
+
+
+@pytest.mark.asyncio
+async def test_analyze_location_uses_bhuvan_when_available(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.ai import provider as provider_module
+    from app.geoai.providers.bhuvan_lulc import BhuvanLulcConfig
+
+    monkeypatch.setattr(
+        provider_module,
+        "get_bhuvan_lulc_config",
+        lambda: BhuvanLulcConfig(
+            enabled=True,
+            access_token="token",
+            api_base="https://example.test/api",
+            year="2015_16",
+            timeout_seconds=60.0,
+            aoi_delta_deg=0.01,
+        ),
+    )
+    monkeypatch.setattr(
+        provider_module,
+        "query_bhuvan_lulc",
+        lambda lat, lon, config=None: {
+            "provider": "Bhuvan",
+            "provider_type": "LULC Statistics",
+            "status": "AVAILABLE",
+            "dataset": "Bhuvan LULC 250K",
+            "year": "2015_16",
+            "lulc": "Built-up",
+            "statistics": {"Built-up": 0.0},
+            "metadata": {},
+        },
+    )
+
+    response = await client.post(
+        "/api/analyze-location",
+        json={"latitude": 13.2172, "longitude": 79.1003},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["lulc_source"] == "bhuvan_lulc_250k"
+    assert body["lulc"] == "Built-up"
+    assert body["prediction"] == "Built-up"
+    assert body["ndvi_source"] == "satellite_lookup"
+    assert body["bhuvan_lulc"]["status"] == "AVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_submission_analyze_uses_bhuvan_when_available(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.ai import provider as provider_module
+    from app.geoai.providers.bhuvan_lulc import BhuvanLulcConfig
+
+    monkeypatch.setattr(
+        provider_module,
+        "get_bhuvan_lulc_config",
+        lambda: BhuvanLulcConfig(
+            enabled=True,
+            access_token="token",
+            api_base="https://example.test/api",
+            year="2015_16",
+            timeout_seconds=60.0,
+            aoi_delta_deg=0.01,
+        ),
+    )
+    monkeypatch.setattr(
+        provider_module,
+        "query_bhuvan_lulc",
+        lambda lat, lon, config=None: {
+            "provider": "Bhuvan",
+            "provider_type": "LULC Statistics",
+            "status": "AVAILABLE",
+            "dataset": "Bhuvan LULC 250K",
+            "year": "2015_16",
+            "lulc": "Built-up",
+            "statistics": {"Built-up": 0.0},
+            "metadata": {},
+        },
+    )
+
+    created = await client.post(
+        "/api/submissions",
+        json={
+            "title": "Bhuvan LULC analyze",
+            "location_label": "LISS scene",
+            "district": "Chittoor",
+            "lat": 13.2172,
+            "lng": 79.1003,
+            "source": "drishti",
+        },
+    )
+    assert created.status_code == 201, created.text
+    sid = created.json()["id"]
+
+    analyzed = await client.post(f"/api/submissions/{sid}/analyze")
+    assert analyzed.status_code == 200, analyzed.text
+    payload = analyzed.json()
+    assert payload["lulc"] == "Built-up"
+    assert payload["lulc_source"] == "bhuvan_lulc_250k"
+    assert payload["ndvi_source"] == "satellite_lookup"
+    assert payload["bhuvan_lulc"]["lulc"] == "Built-up"
+
+    fetched = await client.get(f"/api/submissions/{sid}/analysis")
+    assert fetched.status_code == 200
+    assert fetched.json()["lulc_source"] == "bhuvan_lulc_250k"
+    assert fetched.json()["lulc"] == "Built-up"
+
+    gis = await client.get("/api/gis/features")
+    match = next(f for f in gis.json()["features"] if f["properties"]["submission_id"] == sid)
+    assert match["properties"]["name"] == "Built-up"
+
+    tasks = await client.get("/api/verification/tasks")
+    task = next((t for t in tasks.json() if t["submission_id"] == sid), None)
+    assert task is not None
 
 
 @pytest.mark.asyncio

@@ -23,9 +23,8 @@ Run with custom env file:
 from __future__ import annotations
 
 import logging
-import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -37,10 +36,12 @@ from fastapi.responses import JSONResponse
 # with full settings once config is loaded.
 logging.basicConfig(level=logging.WARNING)
 
-from app.config import get_settings
-from app.logging_config import setup_logging
-from app.db import init_db, close_db
+from app import models as _models  # noqa: F401  — register ORM metadata
 from app.api.router import root_router
+from app.config import get_settings
+from app.db import close_db, get_session, init_db
+from app.logging_config import setup_logging
+from app.services.seed import seed_if_empty
 
 logger = logging.getLogger("jal_saheli.main")
 
@@ -86,6 +87,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         logger.error("Failed to initialise database during startup", extra={"error": str(exc)})
         # Do NOT raise — allow the server to start so /health can report degraded state
+    else:
+        try:
+            async with get_session() as session:
+                await seed_if_empty(session)
+        except Exception as exc:
+            logger.error("Failed to seed demo data", extra={"error": str(exc)})
 
     # 3. Log optional integration status
     if not settings.telegram.configured:
@@ -125,8 +132,8 @@ def create_app() -> FastAPI:
         title=settings.app.title,
         version=settings.app.version,
         description=(
-            "Backend API for the Jal Saheli community water observation module. "
-            "Powers the ground observation → AI → satellite → verification → earnings pipeline."
+            "GeoWise watershed-intelligence API. Demo providers are labelled as mock/local. "
+            "Jal Saheli, GIS, verification, and Geo AI share one contract."
         ),
         docs_url="/docs" if settings.app.debug else None,
         redoc_url="/redoc" if settings.app.debug else None,

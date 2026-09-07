@@ -87,3 +87,17 @@ async def test_verification_update_and_recommendation(client: AsyncClient) -> No
     body = rec.json()
     assert body["provider"] == "DemoRecommendationEngine"
     assert 0 <= body["suitability"] <= 1
+
+    jal = await client.post(
+        "/api/jal-saheli/submissions",
+        json={
+            "observation_type": "farm_pond",
+            "type_label": "Farm Pond",
+            "lat": 14.68,
+            "lng": 77.60,
+            "location_label": "pytest plot",
+            "notes": "jal post",
+        },
+    )
+    assert jal.status_code == 201, jal.text
+    assert jal.json()["id"].startswith("JS-")

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,8 +51,8 @@ from app.workers.feedback import store_feedback
 router = APIRouter()
 
 
-def _next_id(prefix: str, n: int) -> str:
-    return f"{prefix}-{1000 + n}"
+def _next_id(prefix: str) -> str:
+    return f"{prefix}-{uuid4().hex[:8].upper()}"
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummary)
@@ -153,8 +155,7 @@ async def get_submission_route(submission_id: str, db: AsyncSession = Depends(ge
 
 @router.post("/submissions", response_model=SubmissionOut, status_code=201)
 async def create_submission(payload: SubmissionCreate, db: AsyncSession = Depends(get_db_session)) -> SubmissionOut:
-    n = await db.scalar(select(func.count()).select_from(Submission)) or 0
-    sid = _next_id("GW", int(n) + 200)
+    sid = _next_id("GW")
     now = utcnow()
     row = Submission(
         id=sid,
@@ -332,8 +333,7 @@ async def jal_create(
     payload: JalSaheliSubmissionCreate,
     db: AsyncSession = Depends(get_db_session),
 ) -> JalSaheliSubmissionOut:
-    n = await db.scalar(select(func.count()).select_from(JalSaheliSubmission)) or 0
-    jid = _next_id("JS-S", int(n) + 10)
+    jid = _next_id("JS")
     lat = payload.lat if payload.lat is not None else 13.6288
     lng = payload.lng if payload.lng is not None else 79.4192
     core = SubmissionCreate(

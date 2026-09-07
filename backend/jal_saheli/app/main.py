@@ -30,6 +30,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # ── Logging must be set up FIRST, before any other imports that log ──────────
 # We do a minimal bootstrap here; setup_logging() is called in lifespan
@@ -102,8 +103,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not settings.satellite.configured:
         logger.info("Satellite service not configured — using stub")
 
+    try:
+        from app.geoai.engine import load_geoai_assets
+
+        load_geoai_assets()
+    except Exception as exc:
+        logger.error("Failed to load Geo AI assets", extra={"error": str(exc)})
+
     logger.info(
-        "Jal Saheli backend ready",
+        "GeoWise unified backend ready",
         extra={"host": settings.app.host, "port": settings.app.port},
     )
 
@@ -132,8 +140,8 @@ def create_app() -> FastAPI:
         title=settings.app.title,
         version=settings.app.version,
         description=(
-            "GeoWise watershed-intelligence API. Demo providers are labelled as mock/local. "
-            "Jal Saheli, GIS, verification, and Geo AI share one contract."
+            "GeoWise unified API: Jal Saheli, GIS, verification, and Ved Geo AI "
+            "on a single FastAPI process. Bhuvan is not implemented."
         ),
         docs_url="/docs" if settings.app.debug else None,
         redoc_url="/redoc" if settings.app.debug else None,
@@ -181,6 +189,8 @@ def create_app() -> FastAPI:
         Catch-all for unhandled exceptions.
         Logs full details server-side; returns safe generic message to client.
         """
+        if isinstance(exc, StarletteHTTPException):
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
         logger.error(
             "Unhandled exception",
             extra={"path": str(request.url), "error": str(exc)},

@@ -49,8 +49,9 @@ import {
   initialFlowState,
   SUBMISSION_STATES,
   FLOW_STEPS,
-  runDemoFlow,
+  runLiveAnalysisFlow,
 } from '../utils/submissionFlow';
+import { getAnalysis } from '../../../services/geoAiService';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,7 +112,8 @@ export default function SubmitObservation({ onNavigateBack }) {
     state.status !== SUBMISSION_STATES.LOCATION_SET;
   const isVerifiedOutcome =
     state.status === SUBMISSION_STATES.VERIFIED ||
-    state.status === SUBMISSION_STATES.EARNINGS_ADDED;
+    state.status === SUBMISSION_STATES.EARNINGS_ADDED ||
+    state.status === SUBMISSION_STATES.FAILED;
   const hasPhoto      = !!state.photo;
   const hasType       = !!state.observationType;
   const hasLocation   = !!state.location;
@@ -188,14 +190,14 @@ export default function SubmitObservation({ onNavigateBack }) {
       });
 
       // Launch centralized deterministic demo flow (7.2s pipeline)
-      cancelDemoRef.current = runDemoFlow(
+      cancelDemoRef.current = runLiveAnalysisFlow(
         dispatch,
         {
           observationType: state.observationType,
-          reward: state.observationType?.reward ?? 25,
           submissionId: result.submissionId,
           location: state.location,
           photo: state.photo,
+          fetchAnalysis: () => getAnalysis(result.submissionId),
         },
         (finalSub) => {
           recordSubmission(finalSub);
@@ -309,8 +311,8 @@ export default function SubmitObservation({ onNavigateBack }) {
     return (
       <div className="space-y-5" ref={submitCardRef}>
         <PageHeader
-          title={isVerifiedOutcome ? "Observation Verified" : "Processing Observation"}
-          subtitle="Real-time verification pipeline • Photo → AI → Satellite → Verified → Earnings"
+          title={state.status === SUBMISSION_STATES.FAILED ? 'Geo AI unavailable' : isVerifiedOutcome ? 'Observation analyzed' : 'Processing Observation'}
+          subtitle="Photo → unified backend → Geo AI lookup → verification if flagged"
           actions={backButton}
         />
 
@@ -368,13 +370,13 @@ export default function SubmitObservation({ onNavigateBack }) {
               <div className="lg:col-span-2 space-y-4">
                 <AIProcessing
                   status={state.status}
-                  aiConfidence={92}
+                  aiConfidence={state.verificationResult?.aiConfidence ?? null}
                   observationType={state.observationType}
                   photo={state.photo}
                 />
                 <SatelliteVerification
                   status={state.status}
-                  satelliteConfidence={96}
+                  satelliteConfidence={state.verificationResult?.satelliteConfidence ?? null}
                   location={state.location}
                   observationType={state.observationType}
                 />

@@ -17,6 +17,7 @@ export function featuresToLocations(collection) {
       name: p.name,
       location: p.location,
       status: p.status,
+      analysisStatus: p.analysis_status || p.status,
       confidence: p.confidence,
       description: p.description,
       priority: p.priority,

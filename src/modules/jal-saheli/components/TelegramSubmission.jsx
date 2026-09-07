@@ -30,12 +30,12 @@ import {
 } from 'lucide-react';
 
 import { submitObservation, getObservationTypes, recordSubmission } from '../services/jalSaheliApi';
+import { getAnalysis } from '../../../services/geoAiService';
 import {
   flowReducer,
   initialFlowState,
   SUBMISSION_STATES,
-  DEMO_RESULT,
-  runDemoFlow,
+  runLiveAnalysisFlow,
 } from '../utils/submissionFlow';
 import { LOCALIZED_CONTENT } from '../utils/localLanguageContent';
 
@@ -322,14 +322,14 @@ export default function TelegramSubmission({
         setConvStep(CONV_STEP.PROCESSING);
 
         // Run the 7.2s verification flow
-        cancelDemoRef.current = runDemoFlow(
+        cancelDemoRef.current = runLiveAnalysisFlow(
           dispatch,
           {
             observationType: flowState.observationType || { id: 'water_body', label: 'Water Body' },
-            reward: flowState.observationType?.reward ?? 25,
             submissionId: result.submissionId,
             location: flowState.location,
             photo: flowState.photo,
+            fetchAnalysis: () => getAnalysis(result.submissionId),
           },
           (finalSub) => {
             finalSub.channel = 'telegram';
@@ -402,7 +402,7 @@ export default function TelegramSubmission({
   const hasLocation = !!flowState.location;
 
   const submittedId = flowState.submissionId;
-  const reward = flowState.observationType?.reward ?? DEMO_RESULT.reward;
+  const reward = 0;
   const typeLabel = flowState.observationType?.label ?? 'Water Body';
   const locLabel = flowState.location?.label || 'Field Coordinates';
 
@@ -593,18 +593,23 @@ export default function TelegramSubmission({
                 <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
                   <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                   <div>
-                    <p className="text-sm font-bold text-emerald-800">Verified ✓</p>
+                    <p className="text-sm font-bold text-emerald-800">
+                      {flowState.verificationResult?.available === false ? 'Geo AI unavailable' : 'Analysis stored'}
+                    </p>
                     <p className="text-[11px] text-emerald-600">
-                      AI: {DEMO_RESULT.aiConfidenceDisplay} · Satellite: {DEMO_RESULT.satelliteConfidenceDisplay} · Final: {DEMO_RESULT.finalConfidenceDisplay}
+                      LULC: {flowState.verificationResult?.classification || '—'}
+                      {flowState.verificationResult?.aiConfidence != null
+                        ? ` · Confidence: ${flowState.verificationResult.aiConfidence}%`
+                        : ' · Confidence not produced'}
                     </p>
                   </div>
                 </div>
 
                 <div className="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1">
-                  <p className="font-semibold text-slate-700">{DEMO_RESULT.satelliteResult.label}</p>
-                  <p>Sensor: {DEMO_RESULT.satelliteResult.source}</p>
-                  <p>Band: {DEMO_RESULT.satelliteResult.band}</p>
-                  <p>NDWI Δ: <span className="font-bold text-emerald-700">{DEMO_RESULT.satelliteResult.ndwiDelta}</span></p>
+                  <p className="font-semibold text-slate-700">{flowState.verificationResult?.satelliteMatch || 'No satellite match'}</p>
+                  <p>NDVI: {flowState.verificationResult?.ndvi ?? '—'}</p>
+                  <p>NDWI: {flowState.verificationResult?.ndwi ?? '—'}</p>
+                  <p>{flowState.verificationResult?.changeDetection || flowState.verificationResult?.message || ''}</p>
                 </div>
               </div>
             </Bubble>
@@ -660,10 +665,10 @@ export default function TelegramSubmission({
                     {LOCALIZED_CONTENT[botLang].detection}
                   </p>
                   <p className="text-[11px] text-violet-700 font-medium">
-                    {LOCALIZED_CONTENT[botLang].aiLabel(DEMO_RESULT.aiConfidence)}
+                    {LOCALIZED_CONTENT[botLang].aiLabel(flowState.verificationResult?.aiConfidence ?? 'n/a')}
                   </p>
                   <p className="text-[11px] text-sky-700 font-medium">
-                    {LOCALIZED_CONTENT[botLang].satelliteLabel(DEMO_RESULT.satelliteConfidence)}
+                    {LOCALIZED_CONTENT[botLang].satelliteLabel(flowState.verificationResult?.satelliteMatch || 'n/a')}
                   </p>
                   <p className="text-xs font-bold text-emerald-700 pt-1">
                     {LOCALIZED_CONTENT[botLang].rewardText(reward)}

@@ -34,8 +34,8 @@ const activityIconMap = {
 
 const WORKFLOW_STEPS = [
   { label: 'Submission', detail: 'Jal Saheli geo-tagged field photo (local/demo adapter)' },
-  { label: 'AI Analysis', detail: 'MockGeoAIProvider — replaceable Geo AI boundary' },
-  { label: 'Satellite comparison', detail: 'Srishti local adapter — no live granules' },
+  { label: 'AI Analysis', detail: 'Ved Random Forest + local satellite_lookup.npz' },
+  { label: 'Satellite comparison', detail: 'Offline NPZ scene lookup — Bhuvan not implemented' },
   { label: 'Verification', detail: 'Autonomous triage → officer queue' },
   { label: 'Intervention', detail: 'Rule-based demo recommendation + feedback store' },
 ];

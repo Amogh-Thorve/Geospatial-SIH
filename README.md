@@ -5,9 +5,9 @@ GeoWise is a geospatial watershed-intelligence dashboard for Smart India Hackath
 backend**, and **one database** so the product can be demonstrated as a single
 operational workflow.
 
-The stack is **demo-first**. Mock/local adapters are labelled. There is no live
-Sentinel download, no trained production model, and no live Telegram bot unless you
-later replace the provider classes.
+The stack uses **one FastAPI process** on port 8000. Ved's Random Forest and
+`satellite_lookup.npz` are loaded inside Jal Saheli. There is **no live Bhuvan**
+client in this release.
 
 ## Authoritative modules
 
@@ -16,7 +16,7 @@ later replace the provider classes.
 | GIS | `src/modules/gis-map` (`GISMapPage`) | `src/pages/GisMap.jsx` |
 | Jal Saheli | `src/modules/jal-saheli` (`JalSaheliDashboard`) | `src/pages/JalSaheli.jsx` |
 | Command Center | `src/pages/CommandCenter.jsx` | — |
-| Submission / Geo AI UI | `src/pages/SubmissionAnalysis.jsx` | Ved's Geo AI branch is **not merged** |
+| Submission / Geo AI UI | `src/pages/SubmissionAnalysis.jsx` | Unified `/api/submissions/{id}/analyze` + `/api/analyze-location` |
 | Verification | `src/pages/VerificationQueue.jsx` | `src/data/verificationMockData.js` (reference only) |
 | API client | `src/services/*` | per-page mock imports removed from live pages |
 
@@ -66,9 +66,9 @@ cd backend/jal_saheli && pytest && ruff check app tests
 
 ## Architecture notes
 
-- **Geo AI boundary:** `analyzeSubmission(id)` → FastAPI → `MockGeoAIProvider`. Swap in `RealGeoAIProvider` later without rewriting the UI.
-- **Data fusion:** `app/geospatial/adapters.py` (Drishti / Srishti / historical local adapters).
-- **Triage:** confidence below `GEOAI_CONFIDENCE_THRESHOLD` (default 0.75) creates a `VerificationTask`.
+- **Geo AI:** Ved `RandomForestClassifier` (`lulc_rf_model_final.pkl`) and local `satellite_lookup.npz` are served from the same app as Jal Saheli. Pin `scikit-learn==1.6.1` (model training version). Bhuvan is not implemented.
+- **Data fusion:** `app/geospatial/adapters.py` still records that live Drishti/Srishti HTTP is not connected.
+- **Triage:** verification tasks are created from LULC discrepancy or genuine RF probability (when bands are classified). Location lookup does **not** invent 85%/91% confidence.
 - **Closed loop:** verification outcomes write `FeedbackRecord` rows. No retraining worker in the MVP.
 - **Jal Credits:** integer stewardship score, not money.
 - **Telegram:** `LocalTelegramBotProvider` until `TELEGRAM_BOT_TOKEN` is set.

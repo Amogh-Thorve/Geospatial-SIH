@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -33,6 +34,62 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 logger = logging.getLogger("jal_saheli.db")
+
+_NULLABLE_RELAX = {
+    "watershed_features": ("confidence",),
+    "analysis_results": ("confidence",),
+    "verification_tasks": ("confidence",),
+    "recommendations": ("suitability",),
+    "feedback_records": ("confidence",),
+}
+
+
+def _relax_legacy_not_null(sync_conn: Any) -> None:
+    """Allow NULL confidence/suitability on existing SQLite/Postgres tables."""
+    dialect = sync_conn.dialect.name
+    if dialect == "sqlite":
+        sync_conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        for table, cols in _NULLABLE_RELAX.items():
+            info = sync_conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
+            if not info:
+                continue
+            needs = any(row[1] in cols and row[3] for row in info)
+            if not needs:
+                continue
+            pieces: list[str] = []
+            names: list[str] = []
+            for _cid, name, typ, notnull, dflt, pk in info:
+                names.append(f'"{name}"')
+                nn = " NOT NULL" if notnull and name not in cols else ""
+                default = f" DEFAULT {dflt}" if dflt is not None else ""
+                key = " PRIMARY KEY" if pk else ""
+                pieces.append(f'"{name}" {typ or "FLOAT"}{key}{nn}{default}')
+            tmp = f"{table}__nullable"
+            sync_conn.exec_driver_sql(f'DROP TABLE IF EXISTS "{tmp}"')
+            sync_conn.exec_driver_sql(f'CREATE TABLE "{tmp}" ({", ".join(pieces)})')
+            cols_csv = ", ".join(names)
+            sync_conn.exec_driver_sql(
+                f'INSERT INTO "{tmp}" ({cols_csv}) SELECT {cols_csv} FROM "{table}"'
+            )
+            sync_conn.exec_driver_sql(f'DROP TABLE "{table}"')
+            sync_conn.exec_driver_sql(f'ALTER TABLE "{tmp}" RENAME TO "{table}"')
+            logger.info("Relaxed NOT NULL on SQLite table %s", table)
+        sync_conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+        return
+    if dialect in {"postgresql", "postgres"}:
+        statements = [
+            "ALTER TABLE watershed_features ALTER COLUMN confidence DROP NOT NULL",
+            "ALTER TABLE analysis_results ALTER COLUMN confidence DROP NOT NULL",
+            "ALTER TABLE verification_tasks ALTER COLUMN confidence DROP NOT NULL",
+            "ALTER TABLE recommendations ALTER COLUMN suitability DROP NOT NULL",
+            "ALTER TABLE feedback_records ALTER COLUMN confidence DROP NOT NULL",
+        ]
+        for stmt in statements:
+            try:
+                sync_conn.exec_driver_sql(stmt)
+            except Exception:
+                logger.debug("Skip schema relax: %s", stmt)
+
 
 # Module-level singletons (initialised in init_db)
 _engine: AsyncEngine | None = None
@@ -118,6 +175,7 @@ async def init_db(
     if create_tables:
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_relax_legacy_not_null)
         logger.info("Database tables created (create_tables=True)")
 
     # Smoke-test the connection

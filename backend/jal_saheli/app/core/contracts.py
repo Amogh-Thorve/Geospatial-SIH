@@ -28,6 +28,7 @@ class AnalysisStatus(StrEnum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    UNAVAILABLE = "UNAVAILABLE"
 
 
 class Priority(StrEnum):

@@ -1,7 +1,6 @@
 /**
  * Geo AI integration boundary.
- * UI talks only to analyzeSubmission / getAnalysis.
- * Backend currently uses MockGeoAIProvider — not live ML.
+ * All calls go through the unified FastAPI process (Vite /api proxy or VITE_API_BASE_URL).
  */
 import { apiRequest } from './api';
 
@@ -19,4 +18,19 @@ export async function getSubmission(submissionId) {
 
 export async function listSubmissions() {
   return apiRequest('/api/submissions');
+}
+
+export async function analyzeLocation({ latitude, longitude, submissionId } = {}) {
+  return apiRequest('/api/analyze-location', {
+    method: 'POST',
+    body: JSON.stringify({
+      latitude,
+      longitude,
+      submission_id: submissionId || undefined,
+    }),
+  });
+}
+
+export async function getGeoAiHealth() {
+  return apiRequest('/api/geo-ai/health');
 }

@@ -35,6 +35,7 @@ from app.schemas.api import (
     VerificationPatch,
     VerificationTaskOut,
 )
+from app.services.seed import ensure_jal_saheli_profile
 from app.services.serializers import (
     analysis_out,
     gis_feature,
@@ -126,6 +127,7 @@ async def dashboard_summary(db: AsyncSession = Depends(get_db_session)) -> Dashb
             {"id": "api", "label": "GeoWise API", "status": "operational", "note": "Local FastAPI"},
             {"id": "geoai", "label": "Geo AI provider", "status": "operational", "note": "Ved Random Forest + satellite_lookup.npz"},
             {"id": "satellite", "label": "Satellite adapter", "status": "local-lookup", "note": "Local NPZ grid; optional Bhuvan WMS via BHUVAN_ENABLED"},
+            {"id": "bhuvan_lulc", "label": "Bhuvan LULC", "status": "optional", "note": "Enable with BHUVAN_LULC_ENABLED + BHUVAN_ACCESS_TOKEN"},
             {"id": "telegram", "label": "Telegram adapter", "status": "not_configured", "note": "Set TELEGRAM_BOT_TOKEN to enable"},
         ],
         totals={
@@ -276,9 +278,8 @@ async def patch_task(
     if task.status == VerificationStatus.VERIFIED:
         submission.status = SubmissionStatus.VERIFIED
         await store_feedback(db, submission, "VERIFIED", payload.outcome_label, payload.notes)
-        profile = (await db.execute(select(JalSaheliProfile).where(JalSaheliProfile.id == "JS-001"))).scalars().first()
-        if profile:
-            profile.jal_credits += 15
+        profile = await ensure_jal_saheli_profile(db)
+        profile.jal_credits += 15
         js = (
             await db.execute(
                 select(JalSaheliSubmission).where(JalSaheliSubmission.core_submission_id == submission.id)
@@ -309,9 +310,7 @@ async def get_recommendation(submission_id: str, db: AsyncSession = Depends(get_
 
 @router.get("/jal-saheli/profile", response_model=JalSaheliProfileOut)
 async def jal_profile(db: AsyncSession = Depends(get_db_session)) -> JalSaheliProfileOut:
-    profile = (await db.execute(select(JalSaheliProfile).where(JalSaheliProfile.id == "JS-001"))).scalars().first()
-    if profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found")
+    profile = await ensure_jal_saheli_profile(db)
     subs = (
         await db.execute(
             select(JalSaheliSubmission).where(JalSaheliSubmission.profile_id == profile.id)
@@ -333,6 +332,7 @@ async def jal_create(
     payload: JalSaheliSubmissionCreate,
     db: AsyncSession = Depends(get_db_session),
 ) -> JalSaheliSubmissionOut:
+    profile = await ensure_jal_saheli_profile(db)
     jid = _next_id("JS")
     if payload.lat is None or payload.lng is None:
         raise HTTPException(status_code=422, detail="lat and lng are required")
@@ -346,7 +346,7 @@ async def jal_create(
         lng=lng,
         classification=payload.type_label or payload.observation_type,
         photo_url=payload.photo_url,
-        submitter_name="Asha Patil",
+        submitter_name=profile.name,
         source="jal-saheli",
         notes=payload.notes,
     )
@@ -357,7 +357,7 @@ async def jal_create(
     now = utcnow()
     js = JalSaheliSubmission(
         id=jid,
-        profile_id="JS-001",
+        profile_id=profile.id,
         core_submission_id=created.id,
         observation_type=payload.observation_type,
         type_label=payload.type_label or payload.observation_type.replace("_", " ").title(),
@@ -378,7 +378,7 @@ async def jal_create(
 
 @router.get("/jal-saheli/earnings", response_model=JalSaheliEarningsOut)
 async def jal_earnings(db: AsyncSession = Depends(get_db_session)) -> JalSaheliEarningsOut:
-    profile = (await db.execute(select(JalSaheliProfile).where(JalSaheliProfile.id == "JS-001"))).scalars().first()
+    profile = await ensure_jal_saheli_profile(db)
     rows = (
         await db.execute(select(JalSaheliSubmission).order_by(JalSaheliSubmission.created_at.desc()))
     ).scalars().all()
@@ -397,7 +397,7 @@ async def jal_earnings(db: AsyncSession = Depends(get_db_session)) -> JalSaheliE
         for r in rows
     ]
     return JalSaheliEarningsOut(
-        total_credits=profile.jal_credits if profile else 0,
+        total_credits=profile.jal_credits,
         transaction_count=len(ledger),
         ledger=ledger,
     )

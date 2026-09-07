@@ -277,6 +277,7 @@ export function runLiveAnalysisFlow(dispatch, payload = {}, onCompleteArg = null
               satelliteImageryType: analysis?.satellite_imagery_type,
               lulcSource: analysis?.lulc_source,
               bhuvanLulc: analysis?.bhuvan_lulc,
+              bhuvan: analysis?.bhuvan,
               aiConfidence: confPct,
               satelliteConfidence: confPct,
               finalConfidence: confPct,

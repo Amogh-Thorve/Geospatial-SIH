@@ -37,6 +37,7 @@ _startup_time: float = time.time()
 
 @router.get(
     "/health",
+    include_in_schema=True,
     summary="Backend health check",
     response_description="Aggregated health status of backend components",
     responses={

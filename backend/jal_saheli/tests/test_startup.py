@@ -46,6 +46,7 @@ class TestAppCreation:
         app = create_app()
         routes = [r.path for r in app.routes if hasattr(r, "path")]
         assert "/health" in routes, f"Expected /health in routes, got: {routes}"
+        assert "/api/health" in routes or any(p.endswith("/health") for p in routes)
 
 
 class TestLifespan:

@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: geowise
+      POSTGRES_PASSWORD: geowise
+      POSTGRES_DB: geowise
+    ports:
+      - "5432:5432"
+    volumes:
+      - geowise_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geowise -d geowise"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      APP_ENV: development
+      DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://geowise:geowise@db:5432/geowise
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+      JWT_SECRET_KEY: local-dev-only-not-for-production
+      GEOAI_CONFIDENCE_THRESHOLD: "0.75"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  geowise_pg:

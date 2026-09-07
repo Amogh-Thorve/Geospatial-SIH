@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -28,8 +28,9 @@ load_dotenv(dotenv_path=_env_test_path, override=True)
 os.environ["ENV_FILE"] = str(_env_test_path)
 
 # ── Now import app modules (config will read from os.environ populated above) ─
-from app.config import get_settings, Settings  # noqa: E402
-from app.db.database import init_db, close_db, Base  # noqa: E402
+from app import models as _models  # noqa: E402, F401
+from app.config import Settings, get_settings  # noqa: E402
+from app.db.database import close_db, init_db  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 # Ensure any cached settings instance is cleared so our env vars take effect
@@ -74,13 +75,23 @@ async def init_test_db(settings: Settings):
     Initialise an in-memory SQLite database for the test session.
     Tables are created from ORM models and dropped after all tests run.
     """
+    db_path = Path(__file__).parent.parent / "jal_saheli_test.db"
+    if db_path.exists():
+        db_path.unlink()
     await init_db(
         database_url=settings.database.url,
         echo=False,
         create_tables=True,
     )
+    from app.db.database import get_session as open_session
+    from app.services.seed import seed_if_empty
+
+    async with open_session() as session:
+        await seed_if_empty(session)
     yield
     await close_db()
+    if db_path.exists():
+        db_path.unlink()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

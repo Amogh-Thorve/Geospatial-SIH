@@ -30,7 +30,7 @@ export default function AlertCard({ alert }) {
           </span>
         </div>
         <button
-          onClick={() => navigate('/submission-analysis')}
+          onClick={() => navigate(`/submission-analysis?id=${alert.submissionId}`)}
           className="flex items-center space-x-1 text-emerald-700 hover:text-emerald-800 font-semibold"
         >
           <span>Inspect {alert.submissionId}</span>

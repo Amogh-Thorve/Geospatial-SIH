@@ -28,7 +28,6 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Category: Application
 # ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +40,7 @@ class AppSettings(BaseSettings):
         validation_alias="APP_ENV",
         description="Runtime environment",
     )
-    title: str = Field(default="Jal Saheli Backend API", validation_alias="APP_TITLE")
+    title: str = Field(default="GeoWise Backend API", validation_alias="APP_TITLE")
     version: str = Field(default="1.0.0", validation_alias="APP_VERSION")
     debug: bool = Field(default=False, validation_alias="DEBUG")
     host: str = Field(default="0.0.0.0", validation_alias="HOST")
@@ -127,6 +126,11 @@ class AISettings(BaseSettings):
     service_url: str = Field(default="", validation_alias="AI_SERVICE_URL")
     api_key: str = Field(default="", validation_alias="AI_SERVICE_API_KEY")
     timeout_seconds: int = Field(default=30, validation_alias="AI_REQUEST_TIMEOUT_SECONDS")
+    confidence_threshold: float = Field(
+        default=0.75,
+        validation_alias="GEOAI_CONFIDENCE_THRESHOLD",
+        description="Analyses below this confidence create a verification task",
+    )
 
     @property
     def configured(self) -> bool:

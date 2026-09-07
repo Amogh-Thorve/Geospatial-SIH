@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
+import { ApiStatusProvider } from './context/ApiStatusContext';
 
 import CommandCenter from './pages/CommandCenter';
 import SubmissionAnalysis from './pages/SubmissionAnalysis';
@@ -19,6 +20,7 @@ export default function App() {
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
+    <ApiStatusProvider>
     <BrowserRouter>
       <div className="flex h-screen w-screen overflow-hidden bg-slate-100">
         {/* Mobile sidebar backdrop overlay */}
@@ -54,7 +56,7 @@ export default function App() {
                   <p className="text-4xl font-bold text-slate-300 mb-3">404</p>
                   <h1 className="text-lg font-bold text-slate-800">Page Not Found</h1>
                   <p className="text-xs text-slate-500 mt-1 mb-5 max-w-xs">The route you requested does not exist. Use the sidebar to navigate.</p>
-                  <a href="/" className="px-4 py-2 bg-slate-900 text-white rounded text-xs font-bold hover:bg-slate-800 transition-colors">Return to Command Center</a>
+                  <Link to="/" className="px-4 py-2 bg-slate-900 text-white rounded text-xs font-bold hover:bg-slate-800 transition-colors">Return to Command Center</Link>
                 </div>
               } />
             </Routes>
@@ -62,5 +64,6 @@ export default function App() {
         </div>
       </div>
     </BrowserRouter>
+    </ApiStatusProvider>
   );
 }

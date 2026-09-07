@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useApiStatus } from '../../context/ApiStatusContext';
 import {
   LayoutDashboard,
   Map,
@@ -29,6 +30,7 @@ const navigationItems = [
  *   onClose — function — called when the user closes the mobile drawer
  */
 export default function Sidebar({ isOpen, onClose }) {
+  const { status } = useApiStatus();
   return (
     <aside
       className={[
@@ -103,10 +105,12 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Sidebar Footer — system status */}
       <div className="p-4 border-t border-slate-800 text-xs text-slate-400 bg-slate-950/40 shrink-0">
         <div className="flex items-center space-x-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" aria-hidden="true" />
-          <span className="font-medium text-slate-300">GeoBrain Model v2.4</span>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${status === 'live' ? 'bg-emerald-500' : status === 'checking' ? 'bg-slate-400' : 'bg-amber-500'}`} aria-hidden="true" />
+          <span className="font-medium text-slate-300">
+            {status === 'live' ? 'API connected' : status === 'offline' ? 'Demo / Offline' : status === 'degraded' ? 'API degraded' : 'Checking API'}
+          </span>
         </div>
-        <p className="mt-1 text-[11px] text-slate-400">Sentinel-2 Sync: Active</p>
+        <p className="mt-1 text-[11px] text-slate-400">MockGeoAIProvider · no live Sentinel feed</p>
       </div>
     </aside>
   );

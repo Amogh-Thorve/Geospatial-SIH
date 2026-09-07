@@ -53,7 +53,7 @@ export default function Analytics() {
     <div className="space-y-6">
       <PageHeader
         title="Analytics & recommendations"
-        subtitle="Rule-based demo recommendation engine. Not a trained production model."
+        subtitle="Rule-based recommendation engine driven by persisted Geo AI analysis."
       />
       <ConnectionBanner />
 
@@ -77,7 +77,7 @@ export default function Analytics() {
       )}
 
       {!loading && !error && !primary && (
-        <EmptyState title="No recommendations yet" message="Run analysis on a submission to generate a demo recommendation." />
+        <EmptyState title="No recommendations yet" message="Run analysis on a submission to generate a recommendation." />
       )}
 
       {primary && (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { Layers, ExternalLink } from 'lucide-react';
+import { Layers, ExternalLink, Satellite } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { useNavigate } from 'react-router-dom';
 
@@ -24,6 +24,11 @@ const createCustomIcon = (type) => {
   });
 };
 
+const SATELLITE_TILE =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const SATELLITE_ATTR =
+  'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community';
+
 export default function MapPanel({ markers = [], height = "h-[450px]" }) {
   const navigate = useNavigate();
   const [activeLayer, setActiveLayer] = useState('all');
@@ -38,8 +43,8 @@ export default function MapPanel({ markers = [], height = "h-[450px]" }) {
       {/* Top Map Layer Control Bar */}
       <div className="bg-slate-900 text-slate-200 px-4 py-2 text-xs flex items-center justify-between z-20 border-b border-slate-800">
         <div className="flex items-center space-x-2">
-          <Layers className="w-4 h-4 text-emerald-400" />
-          <span className="font-semibold text-white">GIS Spatial Layers</span>
+          <Satellite className="w-4 h-4 text-emerald-400" />
+          <span className="font-semibold text-white">Satellite overview</span>
         </div>
         <div className="flex items-center space-x-1">
           <button
@@ -69,7 +74,7 @@ export default function MapPanel({ markers = [], height = "h-[450px]" }) {
         </div>
       </div>
 
-      {/* Main Interactive Leaflet Canvas */}
+      {/* Main Interactive Leaflet Canvas — Esri World Imagery satellite basemap */}
       <div className="flex-1 w-full relative z-10">
         <MapContainer
           center={[14.8000, 78.5000]}
@@ -77,10 +82,7 @@ export default function MapPanel({ markers = [], height = "h-[450px]" }) {
           scrollWheelZoom={false}
           style={{ height: '100%', width: '100%' }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <TileLayer attribution={SATELLITE_ATTR} url={SATELLITE_TILE} />
 
           {filteredMarkers.map((marker) => (
             <Marker
@@ -97,9 +99,15 @@ export default function MapPanel({ markers = [], height = "h-[450px]" }) {
                   <h4 className="font-semibold text-xs text-slate-800 leading-tight">{marker.title}</h4>
                   <div className="text-[11px] text-slate-600 space-y-1">
                     <p><span className="font-medium text-slate-700">District:</span> {marker.district}</p>
-                    <p><span className="font-medium text-slate-700">Submitter:</span> {marker.submitter}</p>
-                    <p><span className="font-medium text-slate-700">Confidence:</span> {marker.confidence}</p>
-                    <p className="italic text-slate-500 text-[10px] mt-1">{marker.description}</p>
+                    {marker.submitter ? (
+                      <p><span className="font-medium text-slate-700">Submitter:</span> {marker.submitter}</p>
+                    ) : null}
+                    {marker.confidence != null && marker.confidence !== '0%' ? (
+                      <p><span className="font-medium text-slate-700">Confidence:</span> {marker.confidence}</p>
+                    ) : null}
+                    {marker.description ? (
+                      <p className="italic text-slate-500 text-[10px] mt-1">{marker.description}</p>
+                    ) : null}
                   </div>
                   <button
                     onClick={() => navigate(`/submission-analysis?id=${marker.id}`)}

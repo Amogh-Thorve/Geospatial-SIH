@@ -50,7 +50,7 @@ export default function Topbar({ onMenuToggle }) {
 
         <div className="hidden xl:flex items-center space-x-2 text-xs text-slate-500">
           <ShieldCheck className="w-3.5 h-3.5 text-blue-600" aria-hidden="true" />
-          <span>{status === 'live' ? 'API connected (demo providers)' : status === 'offline' ? 'Demo / Offline' : 'API status: ' + status}</span>
+          <span>{status === 'live' ? 'API connected' : status === 'offline' ? 'Offline' : 'API status: ' + status}</span>
         </div>
       </div>
 

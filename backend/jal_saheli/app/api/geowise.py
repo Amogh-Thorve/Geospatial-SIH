@@ -73,12 +73,12 @@ async def dashboard_summary(db: AsyncSession = Depends(get_db_session)) -> Dashb
     recs = await db.scalar(select(func.count()).select_from(Recommendation)) or 0
 
     kpis = [
-        DashboardKpi(id="submissions", label="Total submissions", value=str(total), change="Demo seed + live posts", icon="FileText", status="info"),
+        DashboardKpi(id="submissions", label="Total submissions", value=str(total), change="Live field posts", icon="FileText", status="info"),
         DashboardKpi(id="verified", label="Verified submissions", value=str(verified), change="Field-closed cases", icon="CheckCircle2", status="success", trend="up"),
         DashboardKpi(id="low-conf", label="Low-confidence cases", value=str(low), change="Below triage threshold", icon="AlertTriangle", status="warning", trend="down"),
         DashboardKpi(id="queue", label="Active verification tasks", value=str(tasks), change="Autonomous triage", icon="ShieldCheck", status="warning"),
-        DashboardKpi(id="areas", label="Watershed features mapped", value=str(areas), change="Local demo GIS layer", icon="MapPin", status="info"),
-        DashboardKpi(id="recs", label="Recommended interventions", value=str(recs), change="Rule-based demo engine", icon="Satellite", status="success"),
+        DashboardKpi(id="areas", label="Watershed features mapped", value=str(areas), change="GIS feature layer", icon="MapPin", status="info"),
+        DashboardKpi(id="recs", label="Recommended interventions", value=str(recs), change="Rule-based recommendations", icon="Satellite", status="success"),
     ]
 
     task_rows = (
@@ -118,7 +118,7 @@ async def dashboard_summary(db: AsyncSession = Depends(get_db_session)) -> Dashb
     ]
 
     return DashboardSummary(
-        provider="demo",
+        provider="geowise",
         kpis=kpis,
         alerts=alerts,
         activity=activity,
@@ -126,7 +126,7 @@ async def dashboard_summary(db: AsyncSession = Depends(get_db_session)) -> Dashb
             {"id": "api", "label": "GeoWise API", "status": "operational", "note": "Local FastAPI"},
             {"id": "geoai", "label": "Geo AI provider", "status": "operational", "note": "Ved Random Forest + satellite_lookup.npz"},
             {"id": "satellite", "label": "Satellite adapter", "status": "local-lookup", "note": "Local NPZ grid; optional Bhuvan WMS via BHUVAN_ENABLED"},
-            {"id": "telegram", "label": "Telegram adapter", "status": "demo", "note": "LocalTelegramBotProvider"},
+            {"id": "telegram", "label": "Telegram adapter", "status": "not_configured", "note": "Set TELEGRAM_BOT_TOKEN to enable"},
         ],
         totals={
             "submissions": int(total),
@@ -218,7 +218,7 @@ async def get_analysis(submission_id: str, db: AsyncSession = Depends(get_db_ses
 @router.get("/gis/features", response_model=GisFeatureCollection)
 async def gis_features(db: AsyncSession = Depends(get_db_session)) -> GisFeatureCollection:
     rows = (await db.execute(select(WatershedFeature))).scalars().all()
-    return GisFeatureCollection(provider="demo-local", features=[gis_feature(r) for r in rows])
+    return GisFeatureCollection(provider="geowise", features=[gis_feature(r) for r in rows])
 
 
 @router.get("/verification/tasks", response_model=list[VerificationTaskOut])

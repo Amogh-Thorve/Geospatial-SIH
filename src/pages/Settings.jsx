@@ -11,7 +11,6 @@ const DEFAULTS = {
   region: 'Andhra Pradesh · Pilot Region',
   language: 'English (US)',
   alertThreshold: 'High & Critical',
-  demoLabels: true,
 };
 
 function loadPrefs() {
@@ -59,7 +58,7 @@ export default function Settings() {
         </h2>
         <p>API connection: <strong>{status}</strong></p>
         <p>Backend environment: <strong>{health?.environment || 'n/a'}</strong></p>
-        <p>Geo AI / satellite / Telegram integrations are demo adapters unless credentials are set in backend env.</p>
+        <p>Optional integrations (Bhuvan LULC, Telegram) activate when credentials are set in backend env.</p>
       </section>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -81,7 +80,7 @@ export default function Settings() {
 
         <section className="bg-white border border-slate-200 rounded-sm p-6 space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-            <Globe className="w-4 h-4 text-emerald-600" /> Demo configuration
+            <Globe className="w-4 h-4 text-emerald-600" /> Display preferences
           </h2>
           <label className="block text-xs font-semibold text-slate-700">
             Language (UI label only)
@@ -91,13 +90,9 @@ export default function Settings() {
               <option>Hindi (हिंदी)</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={settings.demoLabels} onChange={(e) => setSettings({ ...settings, demoLabels: e.target.checked })} />
-            Keep demo/mock labels visible in the shell
-          </label>
           <p className="text-[11px] text-slate-500 flex gap-1">
             <AlertTriangle className="w-3.5 h-3.5" />
-            Future production settings (SSO, live Sentinel credentials, Telegram webhook) belong in backend environment variables, not this form.
+            Production settings (SSO, Bhuvan token, Telegram webhook) belong in backend environment variables, not this form.
           </p>
         </section>
 

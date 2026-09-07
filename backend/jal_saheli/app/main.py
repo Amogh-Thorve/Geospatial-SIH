@@ -91,9 +91,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         try:
             async with get_session() as session:
-                await seed_if_empty(session)
+                if settings.app.seed_demo_data:
+                    await seed_if_empty(session)
+                else:
+                    from app.services.seed import purge_demo_seed
+
+                    removed = await purge_demo_seed(session)
+                    if removed:
+                        logger.info(
+                            "Removed previously seeded demo records",
+                            extra={"removed": removed},
+                        )
+                    else:
+                        logger.info("Demo seed disabled (SEED_DEMO_DATA=false) — empty honest database")
         except Exception as exc:
-            logger.error("Failed to seed demo data", extra={"error": str(exc)})
+            logger.error("Failed during seed/purge startup step", extra={"error": str(exc)})
 
     # 3. Log optional integration status
     if not settings.telegram.configured:

@@ -9,7 +9,7 @@ export default function ConnectionBanner() {
     return (
       <div className="mb-4 flex items-center justify-between rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
         <span>
-          Connected to GeoWise API · providers remain <strong>demo/mock</strong> unless configured.
+          Connected to GeoWise API.
         </span>
         <span className="font-semibold uppercase tracking-wide">{health?.environment}</span>
       </div>
@@ -30,7 +30,7 @@ export default function ConnectionBanner() {
         {status === 'offline' ? <WifiOff className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
         <div>
           <p className="font-bold uppercase tracking-wide">
-            {status === 'offline' ? 'Demo / Offline mode' : 'API degraded'}
+            {status === 'offline' ? 'Offline — API unreachable' : 'API degraded'}
           </p>
           <p className="mt-0.5">
             {error || 'Backend is reachable but a required component is unhealthy. Writes may fail.'}

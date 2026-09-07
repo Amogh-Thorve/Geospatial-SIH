@@ -17,6 +17,9 @@ if not exist "%VENV_PY%" (
 if not defined DATABASE_URL (
     set "DATABASE_URL=sqlite+aiosqlite:///./geowise_dev.db"
 )
+if not defined SEED_DEMO_DATA (
+    set "SEED_DEMO_DATA=false"
+)
 
 echo Working directory: %CD%
 echo Starting uvicorn app.main:app on http://0.0.0.0:8000 ...

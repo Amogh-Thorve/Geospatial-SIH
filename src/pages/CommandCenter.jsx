@@ -33,11 +33,11 @@ const activityIconMap = {
 };
 
 const WORKFLOW_STEPS = [
-  { label: 'Submission', detail: 'Jal Saheli geo-tagged field photo (local/demo adapter)' },
+  { label: 'Submission', detail: 'Jal Saheli geo-tagged field photo' },
   { label: 'AI Analysis', detail: 'Ved Random Forest + local satellite_lookup.npz' },
   { label: 'Satellite comparison', detail: 'Local NPZ grid; optional Bhuvan WMS when BHUVAN_ENABLED' },
   { label: 'Verification', detail: 'Autonomous triage → officer queue' },
-  { label: 'Intervention', detail: 'Rule-based demo recommendation + feedback store' },
+  { label: 'Intervention', detail: 'Rule-based recommendation + feedback store' },
 ];
 
 export default function CommandCenter() {
@@ -67,9 +67,9 @@ export default function CommandCenter() {
           district: loc.location,
           type: loc.type === 'flagged' ? 'flagged' : loc.type === 'jal-saheli' ? 'jal-saheli' : loc.status === 'verified' ? 'verified' : 'water-body',
           typeLabel: loc.type,
-          submitter: 'Demo dataset',
+          submitter: loc.submitter || '',
           date: '',
-          confidence: `${Math.round((loc.confidence || 0) * 100)}%`,
+          confidence: loc.confidence != null ? `${Math.round(loc.confidence * 100)}%` : null,
           status: loc.status,
           description: loc.description,
         })),
@@ -90,7 +90,7 @@ export default function CommandCenter() {
     <div className="space-y-6">
       <PageHeader
         title="Command Center"
-        subtitle="Operational watershed intelligence — demo providers labelled. Andhra Pradesh pilot region."
+        subtitle="Operational watershed intelligence for the Andhra Pradesh pilot region."
         actions={
           <button
             type="button"

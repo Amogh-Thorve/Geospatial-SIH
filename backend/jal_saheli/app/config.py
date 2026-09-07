@@ -45,6 +45,11 @@ class AppSettings(BaseSettings):
     debug: bool = Field(default=False, validation_alias="DEBUG")
     host: str = Field(default="0.0.0.0", validation_alias="HOST")
     port: int = Field(default=8000, validation_alias="PORT")
+    seed_demo_data: bool = Field(
+        default=False,
+        validation_alias="SEED_DEMO_DATA",
+        description="When true, seed demo/mock records on empty database. Default off.",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

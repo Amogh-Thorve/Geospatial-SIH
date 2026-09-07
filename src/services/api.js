@@ -31,7 +31,7 @@ export async function apiRequest(path, options = {}) {
     response = await fetch(url, { ...options, headers });
   } catch {
     throw new ApiError(
-      `Backend unreachable (${url}). Start the FastAPI server or use Demo/Offline mode.`,
+      `Backend unreachable (${url}). Start the FastAPI server on port 8000.`,
       { status: 0, path },
     );
   }

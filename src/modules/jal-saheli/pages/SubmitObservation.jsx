@@ -189,7 +189,7 @@ export default function SubmitObservation({ onNavigateBack }) {
         submissionId: result.submissionId,
       });
 
-      // Launch centralized deterministic demo flow (7.2s pipeline)
+      // Launch live analysis pipeline (polls backend analysis)
       cancelDemoRef.current = runLiveAnalysisFlow(
         dispatch,
         {

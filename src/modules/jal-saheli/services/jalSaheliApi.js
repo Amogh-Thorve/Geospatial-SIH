@@ -126,7 +126,7 @@ export async function verifySatellite(submissionId) {
     confidence: Math.round((analysis.confidence || 0) * 100),
     confidenceDisplay: `${Math.round((analysis.confidence || 0) * 100)}%`,
     result: analysis.satellite_match,
-    provider: 'Srishti local adapter (demo)',
+    provider: 'GeoWise Geo AI',
   };
 }
 

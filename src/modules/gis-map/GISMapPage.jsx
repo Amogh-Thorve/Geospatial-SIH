@@ -60,7 +60,7 @@ export default function GISMapPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-800">GIS Intelligence Map</h1>
         <p className="text-sm text-slate-500">
-          Local demo GeoJSON from PostGIS/SQLite. Designed for future GeoServer WMS/WFS and raster tiles.
+          Live watershed features from the GeoWise API (SQLite/PostGIS). Designed for future GeoServer WMS/WFS and raster tiles.
         </p>
       </div>
       <ConnectionBanner />

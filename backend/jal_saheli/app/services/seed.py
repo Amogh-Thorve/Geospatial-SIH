@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.contracts import AnalysisStatus, SubmissionStatus, VerificationStatus
 from app.models.entities import (
     AnalysisResult,
+    FeedbackRecord,
     JalSaheliProfile,
     JalSaheliSubmission,
     Recommendation,
@@ -306,3 +307,53 @@ async def seed_if_empty(session: AsyncSession) -> None:
     )
     await session.commit()
     logger.info("Demo dataset seeded")
+
+
+# Known IDs created by seed_if_empty — purged when SEED_DEMO_DATA is false.
+DEMO_SUBMISSION_IDS = (
+    "GW-1042",
+    "GW-1048",
+    "GW-1044",
+    "GW-1012",
+    "GW-1043",
+    "GW-1050",
+)
+DEMO_FEATURE_IDS = (
+    "GW-1042",
+    "GW-1043",
+    "GW-1044",
+    "GW-1045",
+    "GW-1046",
+    "GW-1048",
+    "GW-1049",
+    "GW-1050",
+    "GW-1012",
+    "GW-1052",
+)
+DEMO_TASK_IDS = ("VQ-1042", "VQ-1044")
+DEMO_JAL_SUBMISSION_IDS = ("JS-S-1012", "JS-S-1042")
+DEMO_PROFILE_IDS = ("JS-001",)
+
+
+async def purge_demo_seed(session: AsyncSession) -> int:
+    """Remove previously seeded demo records so live runs show empty/honest data."""
+    from sqlalchemy import delete
+
+    removed = 0
+    ops = [
+        delete(VerificationTask).where(VerificationTask.id.in_(DEMO_TASK_IDS)),
+        delete(JalSaheliSubmission).where(JalSaheliSubmission.id.in_(DEMO_JAL_SUBMISSION_IDS)),
+        delete(FeedbackRecord).where(FeedbackRecord.submission_id.in_(DEMO_SUBMISSION_IDS)),
+        delete(Recommendation).where(Recommendation.submission_id.in_(DEMO_SUBMISSION_IDS)),
+        delete(AnalysisResult).where(AnalysisResult.submission_id.in_(DEMO_SUBMISSION_IDS)),
+        delete(WatershedFeature).where(WatershedFeature.id.in_(DEMO_FEATURE_IDS)),
+        delete(Submission).where(Submission.id.in_(DEMO_SUBMISSION_IDS)),
+        delete(JalSaheliProfile).where(JalSaheliProfile.id.in_(DEMO_PROFILE_IDS)),
+    ]
+    for stmt in ops:
+        result = await session.execute(stmt)
+        removed += result.rowcount or 0
+
+    if removed:
+        await session.commit()
+    return removed

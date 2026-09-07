@@ -48,8 +48,8 @@ export default function MapView({ locations, activeTypes, selectedId, onSelect }
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         />
 
         {visibleLocations.map((loc) => (
@@ -95,7 +95,7 @@ export default function MapView({ locations, activeTypes, selectedId, onSelect }
       </MapContainer>
 
       <div className="pointer-events-none absolute bottom-2 right-3 z-[500] rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-slate-500">
-        OpenStreetMap · Demo location data
+        Esri World Imagery · Live GIS features
       </div>
     </div>
   );

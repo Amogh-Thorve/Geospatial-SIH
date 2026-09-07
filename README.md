@@ -6,8 +6,9 @@ backend**, and **one database** so the product can be demonstrated as a single
 operational workflow.
 
 The stack uses **one FastAPI process** on port 8000. Ved's Random Forest and
-`satellite_lookup.npz` are loaded inside Jal Saheli. There is **no live Bhuvan**
-client in this release.
+`satellite_lookup.npz` are loaded inside Jal Saheli. Optional Bhuvan LULC/WMS
+activate when configured via environment variables. Demo seed data is **off by
+default** (`SEED_DEMO_DATA=false`).
 
 ## Authoritative modules
 
@@ -66,7 +67,8 @@ cd backend/jal_saheli && pytest && ruff check app tests
 
 ## Architecture notes
 
-- **Geo AI:** Ved `RandomForestClassifier` (`lulc_rf_model_final.pkl`) and local `satellite_lookup.npz` are served from the same app as Jal Saheli. Pin `scikit-learn==1.6.1` (model training version). Bhuvan is not implemented.
+- **Geo AI:** Ved `RandomForestClassifier` (`lulc_rf_model_final.pkl`) and local `satellite_lookup.npz` are served from the same app as Jal Saheli. Pin `scikit-learn==1.6.1` (model training version). Optional Bhuvan LULC/WMS via `BHUVAN_*` env vars.
+- **Demo seed:** Disabled by default. Set `SEED_DEMO_DATA=true` only if you need sample GW-* rows for a local demo.
 - **Data fusion:** `app/geospatial/adapters.py` still records that live Drishti/Srishti HTTP is not connected.
 - **Triage:** verification tasks are created from LULC discrepancy or genuine RF probability (when bands are classified). Location lookup does **not** invent 85%/91% confidence.
 - **Closed loop:** verification outcomes write `FeedbackRecord` rows. No retraining worker in the MVP.

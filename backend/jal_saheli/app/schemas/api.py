@@ -58,7 +58,7 @@ class DashboardActivity(BaseModel):
 
 
 class DashboardSummary(BaseModel):
-    provider: str = "demo"
+    provider: str = "geowise"
     kpis: list[DashboardKpi]
     alerts: list[DashboardAlert]
     activity: list[DashboardActivity]
@@ -150,7 +150,7 @@ class GisFeatureProperties(BaseModel):
 
 class GisFeatureCollection(BaseModel):
     type: str = "FeatureCollection"
-    provider: str = "demo-local"
+    provider: str = "geowise"
     features: list[dict]
 
 
@@ -204,7 +204,7 @@ class JalSaheliProfileOut(BaseModel):
     jal_credits: int
     stats: dict[str, int | str]
     accuracy_history: list[dict] = Field(default_factory=list)
-    provider: str = "demo"
+    provider: str = "geowise"
 
 
 class JalSaheliSubmissionCreate(BaseModel):
@@ -242,4 +242,4 @@ class JalSaheliEarningsOut(BaseModel):
     transaction_count: int
     ledger: list[dict]
     note: str = "Jal Credits are a non-monetary stewardship score. They have no cash value."
-    provider: str = "demo"
+    provider: str = "geowise"

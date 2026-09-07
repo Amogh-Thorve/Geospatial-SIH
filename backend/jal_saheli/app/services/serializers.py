@@ -183,7 +183,7 @@ def jal_profile_out(
             "totalCredits": profile.jal_credits,
         },
         accuracy_history=[{"label": s.id, "score": 90 if s.status == "VERIFIED" else 70} for s in submissions[:8]],
-        provider="demo",
+        provider="geowise",
     )
 
 

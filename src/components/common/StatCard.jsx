@@ -11,6 +11,7 @@ const iconMap = {
 
 export default function StatCard({ label, value, change, trend, status, icon }) {
   const IconComponent = iconMap[icon] || MapPin;
+  const changeText = change || (typeof trend === 'string' && !['up', 'down'].includes(trend) ? trend : null);
 
   return (
     <div className="bg-white p-5 border border-slate-200 rounded-sm shadow-xs">
@@ -26,14 +27,14 @@ export default function StatCard({ label, value, change, trend, status, icon }) 
         {status && <StatusBadge status={status} text={status === 'warning' ? 'Alert' : 'Active'} />}
       </div>
 
-      {change && (
+      {changeText && (
         <div className="mt-2 flex items-center text-xs font-medium text-slate-500">
           {trend === 'up' ? (
             <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 mr-1" />
-          ) : (
+          ) : trend === 'down' ? (
             <ArrowDownRight className="w-3.5 h-3.5 text-rose-600 mr-1" />
-          )}
-          <span>{change}</span>
+          ) : null}
+          <span>{changeText}</span>
         </div>
       )}
     </div>

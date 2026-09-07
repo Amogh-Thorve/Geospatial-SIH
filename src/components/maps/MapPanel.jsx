@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { Layers, MapPin, Eye, ExternalLink } from 'lucide-react';
+import { Layers, ExternalLink } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { useNavigate } from 'react-router-dom';
 
@@ -102,7 +102,7 @@ export default function MapPanel({ markers = [], height = "h-[450px]" }) {
                     <p className="italic text-slate-500 text-[10px] mt-1">{marker.description}</p>
                   </div>
                   <button
-                    onClick={() => navigate('/submissions')}
+                    onClick={() => navigate(`/submission-analysis?id=${marker.id}`)}
                     className="w-full mt-2 py-1 px-2 bg-slate-900 text-white rounded text-[11px] font-semibold flex items-center justify-center space-x-1 hover:bg-slate-800"
                   >
                     <span>View Inspection Detail</span>

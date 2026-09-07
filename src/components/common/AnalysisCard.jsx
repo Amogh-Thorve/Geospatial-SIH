@@ -1,8 +1,8 @@
 import React from 'react';
-import { Sparkles, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Sparkles, CheckCircle2 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
-export default function AnalysisCard({ title, subtitle, reasons, metrics, confidenceText }) {
+export default function AnalysisCard({ title, subtitle, reasons, metrics, confidenceText, confidenceLabel }) {
   return (
     <div className="bg-white border border-slate-200 rounded-sm p-5 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -13,7 +13,7 @@ export default function AnalysisCard({ title, subtitle, reasons, metrics, confid
           </h3>
           {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
-        <StatusBadge status="verified" text={confidenceText || "AI Confidence 91%"} />
+        <StatusBadge status="verified" text={confidenceText || confidenceLabel || "AI Confidence 91%"} />
       </div>
 
       {reasons && (

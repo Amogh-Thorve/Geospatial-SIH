@@ -1,0 +1,20 @@
+[tool.pytest.ini_options]
+# Run from: backend/jal_saheli/
+# Command:  pytest
+
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["tests"]
+env_files = [".env.test"]
+
+addopts = "-v --tb=short -p no:warnings"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+lint.select = ["E", "F", "I", "N", "UP", "ANN"]
+lint.ignore = ["ANN101", "ANN102", "ANN401", "E501", "E402", "UP038"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN", "UP038"]
+"app/main.py" = ["E402"]

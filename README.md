@@ -1,16 +1,76 @@
-# React + Vite
+# GeoWise — The Self-Learning Watershed Brain
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+GeoWise is a geospatial watershed-intelligence dashboard for Smart India Hackathon 2026
+(Problem Statement 26015). This recovery branch wires **one frontend**, **one FastAPI
+backend**, and **one database** so the product can be demonstrated as a single
+operational workflow.
 
-Currently, two official plugins are available:
+The stack is **demo-first**. Mock/local adapters are labelled. There is no live
+Sentinel download, no trained production model, and no live Telegram bot unless you
+later replace the provider classes.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Authoritative modules
 
-## React Compiler
+| Capability | Authoritative implementation | Legacy (not routed) |
+| --- | --- | --- |
+| GIS | `src/modules/gis-map` (`GISMapPage`) | `src/pages/GisMap.jsx` |
+| Jal Saheli | `src/modules/jal-saheli` (`JalSaheliDashboard`) | `src/pages/JalSaheli.jsx` |
+| Command Center | `src/pages/CommandCenter.jsx` | — |
+| Submission / Geo AI UI | `src/pages/SubmissionAnalysis.jsx` | Ved's Geo AI branch is **not merged** |
+| Verification | `src/pages/VerificationQueue.jsx` | `src/data/verificationMockData.js` (reference only) |
+| API client | `src/services/*` | per-page mock imports removed from live pages |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Canonical routes: `/`, `/gis-map`, `/submission-analysis`, `/verification`, `/analytics`, `/jal-saheli`, `/settings`.
 
-## Expanding the Oxlint configuration
+## Quick start (no Docker)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Terminal 1 — backend (SQLite):
+
+```bash
+cd backend/jal_saheli
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env   # or set DATABASE_URL=sqlite+aiosqlite:///./geowise_dev.db
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Health: http://localhost:8000/api/health
+
+Terminal 2 — frontend:
+
+```bash
+npm install
+npm run dev
+```
+
+Vite proxies `/api` to port 8000. Open http://localhost:5173.
+
+## Docker Compose
+
+```bash
+docker compose up --build
+```
+
+- App: http://localhost:8080
+- API: http://localhost:8000
+- PostGIS: localhost:5432 (`geowise` / `geowise` / `geowise`)
+
+## Tests and quality
+
+```bash
+npm run lint
+npm run build
+cd backend/jal_saheli && pytest && ruff check app tests
+```
+
+## Architecture notes
+
+- **Geo AI boundary:** `analyzeSubmission(id)` → FastAPI → `MockGeoAIProvider`. Swap in `RealGeoAIProvider` later without rewriting the UI.
+- **Data fusion:** `app/geospatial/adapters.py` (Drishti / Srishti / historical local adapters).
+- **Triage:** confidence below `GEOAI_CONFIDENCE_THRESHOLD` (default 0.75) creates a `VerificationTask`.
+- **Closed loop:** verification outcomes write `FeedbackRecord` rows. No retraining worker in the MVP.
+- **Jal Credits:** integer stewardship score, not money.
+- **Telegram:** `LocalTelegramBotProvider` until `TELEGRAM_BOT_TOKEN` is set.
+
+Do not commit secrets. Use `.env.example` as the template.
